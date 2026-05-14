@@ -27,16 +27,16 @@ field name, every value here has been verified against the docs.
 
 ## Environment
 
-| | |
-|---|---|
-| Sandbox base URL | `https://sandbox-api-d.squadco.com` |
-| Production base URL | `https://api-d.squadco.com` |
-| Auth header | `Authorization: Bearer <SQUAD_SECRET_KEY>` |
-| Sandbox key prefix | `sandbox_sk_` |
-| Production key prefix | `sk_` |
-| Content-Type | `application/json` |
-| Squad webhook sender IP | `18.133.63.109` |
-| Our sandbox merchant ID | `SBWCKYR7RP` |
+|                         |                                            |
+| ----------------------- | ------------------------------------------ |
+| Sandbox base URL        | `https://sandbox-api-d.squadco.com`        |
+| Production base URL     | `https://api-d.squadco.com`                |
+| Auth header             | `Authorization: Bearer <SQUAD_SECRET_KEY>` |
+| Sandbox key prefix      | `sandbox_sk_`                              |
+| Production key prefix   | `sk_`                                      |
+| Content-Type            | `application/json`                         |
+| Squad webhook sender IP | `18.133.63.109`                            |
+| Our sandbox merchant ID | `SBWCKYR7RP`                               |
 
 ---
 
@@ -50,19 +50,19 @@ POST /transaction/initiate
 
 **Request body:**
 
-| Field | Required | Type | Description |
-|---|---|---|---|
-| `email` | Yes | string | Customer email address |
-| `amount` | Yes | integer | Amount in Kobo. ₦500 → `50000` |
-| `currency` | Yes | string | `NGN` or `USD` |
-| `initiate_type` | Yes | string | `"inline"` (embedded) or `"redirect"` |
-| `transaction_ref` | Yes | string | Unique merchant-generated reference |
-| `callback_url` | Yes | string | URL Squad redirects to after payment |
-| `customer_name` | No | string | Display name on checkout |
-| `pass_charge` | No | bool | `true` = customer pays fee, default `false` |
-| `payment_channels` | No | string[] | Subset of `card`, `bank_transfer`, `ussd`, `squad` |
-| `is_recurring` | No | bool | Set `true` to tokenize the card for future charges |
-| `metadata` | No | object | Any custom data — returned in webhook |
+| Field              | Required | Type     | Description                                        |
+| ------------------ | -------- | -------- | -------------------------------------------------- |
+| `email`            | Yes      | string   | Customer email address                             |
+| `amount`           | Yes      | integer  | Amount in Kobo. ₦500 → `50000`                     |
+| `currency`         | Yes      | string   | `NGN` or `USD`                                     |
+| `initiate_type`    | Yes      | string   | `"inline"` (embedded) or `"redirect"`              |
+| `transaction_ref`  | Yes      | string   | Unique merchant-generated reference                |
+| `callback_url`     | Yes      | string   | URL Squad redirects to after payment               |
+| `customer_name`    | No       | string   | Display name on checkout                           |
+| `pass_charge`      | No       | bool     | `true` = customer pays fee, default `false`        |
+| `payment_channels` | No       | string[] | Subset of `card`, `bank_transfer`, `ussd`, `squad` |
+| `is_recurring`     | No       | bool     | Set `true` to tokenize the card for future charges |
+| `metadata`         | No       | object   | Any custom data — returned in webhook              |
 
 **Sample request:**
 
@@ -92,12 +92,12 @@ No request body. The `transaction_ref` goes in the URL path.
 
 **Response:** `200 OK` with `data` object containing:
 
-| Field | Description |
-|---|---|
+| Field                | Description                                        |
+| -------------------- | -------------------------------------------------- |
 | `transaction_status` | One of `Success`, `Failed`, `Abandoned`, `Pending` |
-| `amount` | Amount in Kobo |
-| `email` | Customer email |
-| `currency` | `NGN` / `USD` |
+| `amount`             | Amount in Kobo                                     |
+| `email`              | Customer email                                     |
+| `currency`           | `NGN` / `USD`                                      |
 
 ### 1.3 Verify Soft POS Transaction
 
@@ -153,22 +153,23 @@ const squadInstance = new squad({
   onClose: () => console.log("Widget closed"),
   onLoad: () => console.log("Widget loaded"),
   onSuccess: () => console.log("Payment successful"),
-  key: "sandbox_pk_...",       // PUBLIC key, not secret
+  key: "sandbox_pk_...", // PUBLIC key, not secret
   email: "buyer@example.com",
-  amount: 10000,                // Already in Kobo
+  amount: 10000, // Already in Kobo
   currency_code: "NGN",
   transaction_ref: "optional_unique_ref",
   customer_name: "Aisha Mohammed",
   payment_channels: ["card", "bank", "ussd", "transfer"],
   callback_url: "https://squadtrust.io/callback",
   metadata: { order_id: "abc123" },
-  pass_charge: false
+  pass_charge: false,
 });
 squadInstance.setup();
 squadInstance.open();
 ```
 
 **Field names differ from the server API:**
+
 - Modal uses `currency_code` (server uses `currency`)
 - Modal uses `key` (public key) — server uses `Authorization: Bearer` (secret key)
 - Modal `payment_channels` values: `card`, `bank`, `ussd`, `transfer`
@@ -254,11 +255,13 @@ POST /transaction/payment/authorize
 ```
 
 For PIN:
+
 ```json
 { "transaction_reference": "SQDEMO...", "authorization": { "pin": "1234" } }
 ```
 
 For OTP:
+
 ```json
 { "transaction_reference": "SQDEMO...", "authorization": { "otp": "123456" } }
 ```
@@ -324,20 +327,20 @@ Same endpoint as 4.1, body:
 
 ### USSD Bank Codes (use in direct USSD calls)
 
-| Bank | Code | Bank | Code |
-|---|---|---|---|
-| Access (Diamond) | 063 | Access | 044 |
-| Ecobank | 050 | FCMB | 214 |
-| Fidelity Bank | 070 | First Bank | 011 |
-| GTBank | 058 | Heritage Bank | 030 |
-| Keystone Bank | 082 | Rubies MFB | 125 |
-| Stanbic | 221 | Sterling | 232 |
-| UBA | 033 | Union Bank | 032 |
-| Unity Bank | 215 | VFD Bank | 566 |
-| Wema Bank | 035 | Zenith Bank | 057 |
-| Globus | 00103 | Premium Trust | 105 |
-| LOTUS | 303 | Optimum Trust | 107 |
-| Kuda MFB | 50211 | | |
+| Bank             | Code  | Bank          | Code |
+| ---------------- | ----- | ------------- | ---- |
+| Access (Diamond) | 063   | Access        | 044  |
+| Ecobank          | 050   | FCMB          | 214  |
+| Fidelity Bank    | 070   | First Bank    | 011  |
+| GTBank           | 058   | Heritage Bank | 030  |
+| Keystone Bank    | 082   | Rubies MFB    | 125  |
+| Stanbic          | 221   | Sterling      | 232  |
+| UBA              | 033   | Union Bank    | 032  |
+| Unity Bank       | 215   | VFD Bank      | 566  |
+| Wema Bank        | 035   | Zenith Bank   | 057  |
+| Globus           | 00103 | Premium Trust | 105  |
+| LOTUS            | 303   | Optimum Trust | 107  |
+| Kuda MFB         | 50211 |               |      |
 
 ---
 
@@ -351,18 +354,18 @@ POST /virtual-account
 
 **Required fields:**
 
-| Field | Required | Description |
-|---|---|---|
-| `customer_identifier` | Yes | Your unique ID for this customer |
-| `first_name` | Yes | Must match BVN portal |
-| `last_name` | Yes | Must match BVN portal |
-| `mobile_num` | Yes | Format: `08123456789` |
-| `email` | Yes | Customer email |
-| `bvn` | Yes | 11-digit BVN — strict validation against name/DOB/gender |
-| `dob` | Yes | Format: `MM/DD/YYYY` |
-| `address` | Yes | Customer address |
-| `gender` | Yes | `"1"` for male, `"2"` for female (string) |
-| `beneficiary_account` | No | GTBank account for instant settlement |
+| Field                 | Required | Description                                              |
+| --------------------- | -------- | -------------------------------------------------------- |
+| `customer_identifier` | Yes      | Your unique ID for this customer                         |
+| `first_name`          | Yes      | Must match BVN portal                                    |
+| `last_name`           | Yes      | Must match BVN portal                                    |
+| `mobile_num`          | Yes      | Format: `08123456789`                                    |
+| `email`               | Yes      | Customer email                                           |
+| `bvn`                 | Yes      | 11-digit BVN — strict validation against name/DOB/gender |
+| `dob`                 | Yes      | Format: `MM/DD/YYYY`                                     |
+| `address`             | Yes      | Customer address                                         |
+| `gender`              | Yes      | `"1"` for male, `"2"` for female (string)                |
+| `beneficiary_account` | No       | GTBank account for instant settlement                    |
 
 **Sample:**
 
@@ -453,18 +456,20 @@ times to build up a pool of accounts that will be assigned per transaction.
 
 **Optional fields (use only if you need these behaviors):**
 
-| Field | Description |
-|---|---|
+| Field                 | Description                                            |
+| --------------------- | ------------------------------------------------------ |
 | `beneficiary_account` | GTBank account for instant settlement (must be GTBank) |
-| `first_name` | Custom business display name (requires authorization) |
-| `last_name` | Second part of custom display name |
+| `first_name`          | Custom business display name (requires authorization)  |
+| `last_name`           | Second part of custom display name                     |
 
 For instant settlement to GTBank:
+
 ```json
 { "beneficiary_account": "0147799000" }
 ```
 
 For custom business name (authorized merchants only):
+
 ```json
 {
   "first_name": "Habaripay",
@@ -484,12 +489,12 @@ escrow transaction.**
 POST /virtual-account/initiate-dynamic-virtual-account
 ```
 
-| Field | Required | Description |
-|---|---|---|
-| `amount` | Yes | Amount in Kobo (integer) |
-| `transaction_ref` | Yes | Unique merchant reference |
-| `duration` | Yes | Seconds the VA stays active (e.g., 600 = 10 min) |
-| `email` | Yes | Buyer's email |
+| Field             | Required | Description                                      |
+| ----------------- | -------- | ------------------------------------------------ |
+| `amount`          | Yes      | Amount in Kobo (integer)                         |
+| `transaction_ref` | Yes      | Unique merchant reference                        |
+| `duration`        | Yes      | Seconds the VA stays active (e.g., 600 = 10 min) |
+| `email`           | Yes      | Buyer's email                                    |
 
 **Sample:**
 
@@ -548,6 +553,7 @@ escrow VA.
 Squad sends a POST to your webhook URL for three event types:
 
 **SUCCESS** — exact amount, within duration:
+
 ```json
 {
   "transaction_status": "SUCCESS",
@@ -570,6 +576,7 @@ Squad sends a POST to your webhook URL for three event types:
 **Webhook signature header:** `x-squad-encrypted-body`
 
 **Hash algorithm:** HMAC-SHA512 of the JSON:
+
 ```json
 {
   "transaction_reference": "...",
@@ -577,6 +584,7 @@ Squad sends a POST to your webhook URL for three event types:
   "merchant_reference": "..."
 }
 ```
+
 Signed with your `sandbox_sk_...` secret key.
 
 ---
@@ -591,10 +599,10 @@ Signed with your `sandbox_sk_...` secret key.
 POST /payout/account/lookup
 ```
 
-| Field | Required | Description |
-|---|---|---|
-| `bank_code` | Yes | 6-digit Squad bank code (see table below — NOT 3-digit USSD codes) |
-| `account_number` | Yes | 10-digit NUBAN |
+| Field            | Required | Description                                                        |
+| ---------------- | -------- | ------------------------------------------------------------------ |
+| `bank_code`      | Yes      | 6-digit Squad bank code (see table below — NOT 3-digit USSD codes) |
+| `account_number` | Yes      | 10-digit NUBAN                                                     |
 
 **Sample request:**
 
@@ -628,15 +636,15 @@ rejects transfers where the name doesn't match the lookup result.
 POST /payout/transfer
 ```
 
-| Field | Required | Description |
-|---|---|---|
-| `transaction_reference` | Yes | Format: `MERCHANTID_REFERENCE`. **Must include merchant ID prefix or it fails.** |
-| `amount` | Yes | String, in Kobo. ₦100 → `"10000"` |
-| `bank_code` | Yes | 6-digit code from table below |
-| `account_number` | Yes | 10-digit NUBAN |
-| `account_name` | Yes | Verified name from account lookup |
-| `currency_id` | Yes | Always `"NGN"` |
-| `remark` | Yes | Narration |
+| Field                   | Required | Description                                                                      |
+| ----------------------- | -------- | -------------------------------------------------------------------------------- |
+| `transaction_reference` | Yes      | Format: `MERCHANTID_REFERENCE`. **Must include merchant ID prefix or it fails.** |
+| `amount`                | Yes      | String, in Kobo. ₦100 → `"10000"`                                                |
+| `bank_code`             | Yes      | 6-digit code from table below                                                    |
+| `account_number`        | Yes      | 10-digit NUBAN                                                                   |
+| `account_name`          | Yes      | Verified name from account lookup                                                |
+| `currency_id`           | Yes      | Always `"NGN"`                                                                   |
+| `remark`                | Yes      | Narration                                                                        |
 
 **Sample:**
 
@@ -654,16 +662,16 @@ POST /payout/transfer
 
 ### 7.3 Transfer Error Codes
 
-| Code | Meaning | Action |
-|---|---|---|
-| 200 | Success | Proceed |
-| 400 | Bad request | Check params |
-| 401 | Unauthorized | Verify key |
-| 403 | Invalid API keys | Verify key |
-| 404 | Not found | Check transaction_reference |
-| 412 | Reversed | Transfer was reversed |
-| 422 | Unprocessed | Retry once |
-| 424 | Timeout/failed | **Must re-query before retrying** |
+| Code | Meaning          | Action                            |
+| ---- | ---------------- | --------------------------------- |
+| 200  | Success          | Proceed                           |
+| 400  | Bad request      | Check params                      |
+| 401  | Unauthorized     | Verify key                        |
+| 403  | Invalid API keys | Verify key                        |
+| 404  | Not found        | Check transaction_reference       |
+| 412  | Reversed         | Transfer was reversed             |
+| 422  | Unprocessed      | Retry once                        |
+| 424  | Timeout/failed   | **Must re-query before retrying** |
 
 ### 7.4 Re-query Transfer
 
@@ -695,31 +703,31 @@ API; use the 3-digit codes only for direct USSD payments (section 4.5).**
 
 Common banks (subset — full list of 600+ in docs):
 
-| Code | Bank |
-|---|---|
-| 000001 | Sterling Bank |
-| 000002 | Keystone Bank |
-| 000003 | FCMB |
-| 000004 | UBA |
-| 000005 | Diamond Bank |
-| 000006 | JAIZ Bank |
-| 000007 | Fidelity Bank |
-| 000008 | Polaris Bank |
-| 000009 | Citi Bank |
-| 000010 | Ecobank |
-| 000011 | Unity Bank |
-| 000012 | StanbicIBTC |
-| 000013 | **GTBank Plc** |
-| 000014 | Access Bank |
-| 000015 | Zenith Bank Plc |
-| 000016 | First Bank |
-| 000017 | Wema Bank |
-| 000018 | Union Bank |
-| 000023 | Providus Bank |
-| 000027 | Globus Bank |
-| 000029 | Lotus Bank |
-| 100004 | Opay Digital Services |
-| 100033 | PalmPay |
+| Code   | Bank                   |
+| ------ | ---------------------- |
+| 000001 | Sterling Bank          |
+| 000002 | Keystone Bank          |
+| 000003 | FCMB                   |
+| 000004 | UBA                    |
+| 000005 | Diamond Bank           |
+| 000006 | JAIZ Bank              |
+| 000007 | Fidelity Bank          |
+| 000008 | Polaris Bank           |
+| 000009 | Citi Bank              |
+| 000010 | Ecobank                |
+| 000011 | Unity Bank             |
+| 000012 | StanbicIBTC            |
+| 000013 | **GTBank Plc**         |
+| 000014 | Access Bank            |
+| 000015 | Zenith Bank Plc        |
+| 000016 | First Bank             |
+| 000017 | Wema Bank              |
+| 000018 | Union Bank             |
+| 000023 | Providus Bank          |
+| 000027 | Globus Bank            |
+| 000029 | Lotus Bank             |
+| 100004 | Opay Digital Services  |
+| 100033 | PalmPay                |
 | 090267 | Kuda Microfinance Bank |
 
 For other banks, refer to the full table in the docs (Transfer API page).
@@ -902,6 +910,7 @@ POST /transaction/refund
 ```
 
 Full refund:
+
 ```json
 {
   "gateway_transaction_ref": "wvszq...",
@@ -912,6 +921,7 @@ Full refund:
 ```
 
 Partial refund:
+
 ```json
 {
   "gateway_transaction_ref": "SQOKOY...",
@@ -948,6 +958,7 @@ may resend webhooks. Use `transaction_reference` as your idempotency key.
 ### 11.1 Sample Webhook Payloads
 
 **Card transaction:**
+
 ```json
 {
   "Event": "charge_successful",
@@ -991,6 +1002,7 @@ Three versions exist for Static VA:
 **V1:** Hash the entire JSON payload.
 
 **V2 / V3:** Hash only six pipe-separated fields:
+
 ```
 transaction_reference|virtual_account_number|currency|principal_amount|settled_amount|customer_identifier
 ```
@@ -1003,6 +1015,7 @@ re-queries) and adds a `version: "v3"` field to the payload.
 **Header:** `x-squad-encrypted-body`
 **Algorithm:** HMAC-SHA512
 **Hash input:** JSON serialization of exactly these three fields:
+
 ```json
 {
   "transaction_reference": "...",
@@ -1010,10 +1023,12 @@ re-queries) and adds a `version: "v3"` field to the payload.
   "merchant_reference": "..."
 }
 ```
+
 **Key:** Your secret key
 **Output format:** lowercase hex
 
 **Python implementation:**
+
 ```python
 import hmac
 import hashlib
@@ -1058,6 +1073,7 @@ DELETE /virtual-account/webhook/logs/{transaction_ref}
 Quick reference for which endpoints SquadTrust uses for which feature.
 
 ### Escrow (Safe-Pay)
+
 - Create transaction: `POST /virtual-account/initiate-dynamic-virtual-account`
 - Receive payment: webhook on `dynamic_virtual_account` (System B)
 - Release funds to merchant: `POST /payout/account/lookup` → `POST /payout/transfer`
@@ -1065,14 +1081,17 @@ Quick reference for which endpoints SquadTrust uses for which feature.
 - Sandbox simulation: `POST /virtual-account/simulate/payment`
 
 ### Soft POS (NFC Tap-to-Pay)
+
 - Verify transaction: `GET /softpos/transaction/verify/{ref}`
 - SDK (Android) handles client-side NFC capture — out of band of this REST API
 
 ### Credit Score / Loan
+
 - Pull merchant transaction history: `GET /virtual-account/merchant/transactions/all`
 - Loan disbursement: `POST /payout/account/lookup` → `POST /payout/transfer`
 
 ### Dashboard Live Updates
+
 - Webhook handler for `dynamic_virtual_account` events (System B signature)
 - Webhook handler for `Transfer` events (System A signature)
 
@@ -1114,6 +1133,7 @@ Quick reference for which endpoints SquadTrust uses for which feature.
 ## 14. Where to confirm a field
 
 If anything in this file ever fails against the live sandbox:
+
 1. Re-read this file first — most "errors" are typos.
 2. Check the official docs page that section came from.
 3. Email `help@squadco.com` with merchant ID `SBWCKYR7RP`.

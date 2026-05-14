@@ -8,6 +8,7 @@
 ## Your 7-Day Build Plan
 
 ### Day 1 — Prompt 1.2: Next.js Dashboard Scaffold
+
 **Depends on:** Nothing — start this immediately
 
 Paste this into Claude Code:
@@ -66,6 +67,7 @@ Done when:
 ---
 
 ### Day 2 — Prompt 2.2: Escrow Dashboard UI
+
 **Depends on:** Abideen finishes 2.1 (escrow API endpoints are live)
 
 Paste this into Claude Code:
@@ -120,6 +122,7 @@ Done when:
 ---
 
 ### Day 4 — Prompt 4.2: Soft POS Dashboard Surface
+
 **Depends on:** Abimbola finishes 4.1 (Soft POS mobile flow working)
 
 Paste this into Claude Code:
@@ -151,6 +154,7 @@ Done when:
 ---
 
 ### Day 5 — Prompt 5.1: Trust Score & Loan UI (The Money Shot)
+
 **Depends on:** Abideen + Iseoluwa finish 3.2 and 3.3 (trust score engine + seed data)
 
 This is the 60-second climax of the demo. Make it exceptional.
@@ -206,9 +210,11 @@ Done when:
 **Done when:** All three merchant profiles produce distinct, correct experiences. Loan application completes with confetti. Background gradient shifts by score.
 
 #### Also Day 5 — Demo Control Panel UI
+
 **Coordinate with:** Abideen (he owns the backend endpoints for this)
 
 The `/admin/demo-control` page needs a frontend. Abideen will tell you which endpoints it calls. Build the UI in shadcn/ui with:
+
 - Merchant switcher (Aisha / Tunde / Chioma)
 - "Fund Escrow" button
 - Chat scenario loader (buttons for 1, 2, 3)
@@ -231,24 +237,27 @@ Polish the README, then **make this repo public**. The README must tell a judge 
 
 ```ts
 // display
-const naira = (amount_kobo / 100).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' })
+const naira = (amount_kobo / 100).toLocaleString("en-NG", {
+  style: "currency",
+  currency: "NGN",
+});
 
 // submit (AmountInput handles this — use that component everywhere)
-const kobo = Math.round(nairaInput * 100)
+const kobo = Math.round(nairaInput * 100);
 ```
 
 Never pass Naira to any API endpoint. `AmountInput.tsx` is the only place conversion happens on input.
 
 ## Status Badge Colours
 
-| Status | Colour |
-|--------|--------|
-| `pending` | gray |
-| `funded` | blue |
-| `ai_verifying` | yellow |
-| `needs_review` | orange |
-| `released` | green |
-| `refunded` / `expired` | red |
+| Status                 | Colour |
+| ---------------------- | ------ |
+| `pending`              | gray   |
+| `funded`               | blue   |
+| `ai_verifying`         | yellow |
+| `needs_review`         | orange |
+| `released`             | green  |
+| `refunded` / `expired` | red    |
 
 ## Running Locally
 
@@ -264,7 +273,7 @@ Lint: `npm run lint`
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable                   | Description                                   |
+| -------------------------- | --------------------------------------------- |
 | `NEXT_PUBLIC_API_BASE_URL` | Backend URL — default `http://localhost:8000` |
-| `DEMO_OPERATOR_PASSWORD` | Password for `/admin/demo-control` |
+| `DEMO_OPERATOR_PASSWORD`   | Password for `/admin/demo-control`            |

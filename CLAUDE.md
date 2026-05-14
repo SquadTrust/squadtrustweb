@@ -74,18 +74,18 @@ Lint: `npm run lint`
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_API_BASE_URL` | Backend URL, default `http://localhost:8000` |
-| `DEMO_OPERATOR_PASSWORD` | Password for `/admin/demo-control` (checked client-side via cookie) |
+| Variable                   | Description                                                         |
+| -------------------------- | ------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL` | Backend URL, default `http://localhost:8000`                        |
+| `DEMO_OPERATOR_PASSWORD`   | Password for `/admin/demo-control` (checked client-side via cookie) |
 
 ## Status Badge Colors
 
-| Status | Color |
-|--------|-------|
-| `pending` | gray |
-| `funded` | blue |
-| `ai_verifying` | yellow |
-| `released` | green |
-| `refunded` / `expired` | red |
-| `needs_review` | orange |
+| Status                 | Color  |
+| ---------------------- | ------ |
+| `pending`              | gray   |
+| `funded`               | blue   |
+| `ai_verifying`         | yellow |
+| `released`             | green  |
+| `refunded` / `expired` | red    |
+| `needs_review`         | orange |

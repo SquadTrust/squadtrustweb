@@ -1,9 +1,9 @@
-import React from 'react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { StatusBadge, type TransactionStatus } from './StatusBadge';
-import { formatNaira } from '../lib/utils';
-import { ArrowRightLeft } from 'lucide-react';
+import React from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { StatusBadge, type TransactionStatus } from "./StatusBadge";
+import { formatNaira } from "../lib/utils";
+import { ArrowRightLeft } from "lucide-react";
 
 export interface Transaction {
   id: string;
@@ -21,15 +21,15 @@ interface TransactionRowProps {
 
 export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const date = new Date(transaction.timestamp);
-  
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.01 }}
       className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
     >
-      <Link 
+      <Link
         href={`/pay/${transaction.reference}`}
         target="_blank"
         className="flex items-center justify-between p-4 cursor-pointer"
@@ -44,11 +44,15 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
               {transaction.description || transaction.reference}
             </p>
             <p className="text-xs text-gray-500">
-              {date.toLocaleDateString()} {date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              {date.toLocaleDateString()}{" "}
+              {date.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </p>
           </div>
         </div>
-        
+
         <div className="flex flex-col items-end gap-1">
           <p className="text-sm font-semibold text-gray-900">
             {formatNaira(transaction.amountKobo)}

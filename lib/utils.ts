@@ -6,8 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatNaira(kobo: number): string {
-  return (kobo / 100).toLocaleString('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
+  return (kobo / 100).toLocaleString("en-NG", {
+    style: "currency",
+    currency: "NGN",
   });
 }

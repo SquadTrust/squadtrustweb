@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #0B6E4F;
-  --color-primary-foreground: #FFFFFF;
-  --color-accent: #E8A317;
-  --color-accent-foreground: #FFFFFF;
-  --font-sans: 'Inter', sans-serif;
-  
-  --color-background: #FAFAFA;
-  --color-foreground: #09090B;
-  --color-card: #FFFFFF;
-  --color-card-foreground: #09090B;
-  --color-popover: #FFFFFF;
-  --color-popover-foreground: #09090B;
-  --color-muted: #F4F4F5;
-  --color-muted-foreground: #71717A;
-  --color-border: #E4E4E7;
-  --color-input: #E4E4E7;
-  --color-ring: #0B6E4F;
-  
+  --color-primary: #0b6e4f;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #e8a317;
+  --color-accent-foreground: #ffffff;
+  --font-sans: "Inter", sans-serif;
+
+  --color-background: #fafafa;
+  --color-foreground: #09090b;
+  --color-card: #ffffff;
+  --color-card-foreground: #09090b;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #09090b;
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-ring: #0b6e4f;
+
   --radius-lg: 0.5rem;
   --radius-md: calc(0.5rem - 2px);
   --radius-sm: calc(0.5rem - 4px);
@@ -47,7 +47,7 @@
     --ring: 161 82% 24%;
     --radius: 0.5rem;
   }
-  
+
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;

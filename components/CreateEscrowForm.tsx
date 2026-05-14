@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { AmountInput } from './AmountInput';
+import React, { useState } from "react";
+import { AmountInput } from "./AmountInput";
 
 interface CreateEscrowFormProps {
   onSubmit: (data: {
@@ -13,27 +13,30 @@ interface CreateEscrowFormProps {
   isLoading?: boolean;
 }
 
-export function CreateEscrowForm({ onSubmit, isLoading }: CreateEscrowFormProps) {
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [description, setDescription] = useState('');
+export function CreateEscrowForm({
+  onSubmit,
+  isLoading,
+}: CreateEscrowFormProps) {
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [description, setDescription] = useState("");
   const [amountKobo, setAmountKobo] = useState(0);
-  const [deliveryMethod, setDeliveryMethod] = useState('pickup');
-  const [error, setError] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState("pickup");
+  const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!customerPhone) {
-      setError('Customer phone is required');
+      setError("Customer phone is required");
       return;
     }
     if (!description) {
-      setError('Description is required');
+      setError("Description is required");
       return;
     }
     if (amountKobo <= 0) {
-      setError('Amount must be greater than 0');
+      setError("Amount must be greater than 0");
       return;
     }
 
@@ -46,10 +49,17 @@ export function CreateEscrowForm({ onSubmit, isLoading }: CreateEscrowFormProps)
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md w-full bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 max-w-md w-full bg-white p-6 rounded-lg shadow-sm border border-gray-100"
+    >
       <div>
-        <h3 className="text-lg font-medium text-gray-900">Create Escrow Link</h3>
-        <p className="text-sm text-gray-500 mb-4">Generate a safe payment link for your customer.</p>
+        <h3 className="text-lg font-medium text-gray-900">
+          Create Escrow Link
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Generate a safe payment link for your customer.
+        </p>
       </div>
 
       {error && (
@@ -59,7 +69,12 @@ export function CreateEscrowForm({ onSubmit, isLoading }: CreateEscrowFormProps)
       )}
 
       <div className="space-y-1">
-        <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700">Customer Phone</label>
+        <label
+          htmlFor="customerPhone"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Customer Phone
+        </label>
         <input
           type="tel"
           id="customerPhone"
@@ -71,7 +86,12 @@ export function CreateEscrowForm({ onSubmit, isLoading }: CreateEscrowFormProps)
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700">Item Description</label>
+        <label
+          htmlFor="description"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Item Description
+        </label>
         <input
           type="text"
           id="description"
@@ -82,14 +102,15 @@ export function CreateEscrowForm({ onSubmit, isLoading }: CreateEscrowFormProps)
         />
       </div>
 
-      <AmountInput
-        label="Price"
-        value={amountKobo}
-        onChange={setAmountKobo}
-      />
+      <AmountInput label="Price" value={amountKobo} onChange={setAmountKobo} />
 
       <div className="space-y-1">
-        <label htmlFor="deliveryMethod" className="block text-sm font-medium text-gray-700">Delivery Method</label>
+        <label
+          htmlFor="deliveryMethod"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Delivery Method
+        </label>
         <select
           id="deliveryMethod"
           value={deliveryMethod}
@@ -107,7 +128,7 @@ export function CreateEscrowForm({ onSubmit, isLoading }: CreateEscrowFormProps)
         disabled={isLoading}
         className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#0B6E4F] hover:bg-[#095940] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0B6E4F] disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
       >
-        {isLoading ? 'Creating...' : 'Create Escrow Link'}
+        {isLoading ? "Creating..." : "Create Escrow Link"}
       </button>
     </form>
   );

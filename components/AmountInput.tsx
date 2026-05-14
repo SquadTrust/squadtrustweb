@@ -1,51 +1,62 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useId } from 'react';
-import { cn } from '../lib/utils';
+import React, { useState, useEffect, useId } from "react";
+import { cn } from "../lib/utils";
 
-interface AmountInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+interface AmountInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "value" | "onChange"
+> {
   value: number; // Kobo
   onChange: (value: number) => void;
   label?: string;
   error?: string;
 }
 
-export function AmountInput({ value, onChange, label, error, className, id, ...props }: AmountInputProps) {
+export function AmountInput({
+  value,
+  onChange,
+  label,
+  error,
+  className,
+  id,
+  ...props
+}: AmountInputProps) {
   // Local state for Naira display
-  const [displayValue, setDisplayValue] = useState<string>('');
-  
+  const [displayValue, setDisplayValue] = useState<string>("");
+
   useEffect(() => {
     if (value !== undefined && value !== null && !isNaN(value)) {
       // Only update if the parsed display value differs to avoid overriding active typing
-      const currentNaira = parseFloat(displayValue || '0');
+      const currentNaira = parseFloat(displayValue || "0");
       const expectedNaira = value / 100;
       if (Math.abs(currentNaira - expectedNaira) > 0.01) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setDisplayValue((value / 100).toString());
       }
     } else if (!value) {
-      setDisplayValue('');
+      setDisplayValue("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let rawValue = e.target.value;
-    
+
     // Remove all non-numeric characters except one dot
-    rawValue = rawValue.replace(/[^0-9.]/g, '');
-    const parts = rawValue.split('.');
+    rawValue = rawValue.replace(/[^0-9.]/g, "");
+    const parts = rawValue.split(".");
     if (parts.length > 2) {
-      rawValue = parts[0] + '.' + parts.slice(1).join('');
+      rawValue = parts[0] + "." + parts.slice(1).join("");
     }
-    
+
     setDisplayValue(rawValue);
-    
-    if (!rawValue || rawValue === '.') {
+
+    if (!rawValue || rawValue === ".") {
       onChange(0);
       return;
     }
-    
+
     const nairaValue = parseFloat(rawValue);
     if (!isNaN(nairaValue)) {
       const koboValue = Math.round(nairaValue * 100);
@@ -59,7 +70,10 @@ export function AmountInput({ value, onChange, label, error, className, id, ...p
   return (
     <div className={cn("space-y-2", className)}>
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        <label
+          htmlFor={inputId}
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
           {label}
         </label>
       )}
@@ -74,7 +88,7 @@ export function AmountInput({ value, onChange, label, error, className, id, ...p
           inputMode="decimal"
           className={cn(
             "flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 pl-7 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-red-500 focus-visible:ring-red-500"
+            error && "border-red-500 focus-visible:ring-red-500",
           )}
           placeholder="0.00"
           value={displayValue}
