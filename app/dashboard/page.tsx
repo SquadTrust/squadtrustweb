@@ -31,7 +31,14 @@ export default function DashboardOverview() {
   const [merchantId, setMerchantId] = useState<string | null>(null);
 
   useEffect(() => {
-    setMerchantId(localStorage.getItem("merchant_id"));
+    let isMounted = true;
+    const id = localStorage.getItem("merchant_id");
+    if (isMounted) {
+      setMerchantId(id);
+    }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const { data: transactions = [], isLoading } =
