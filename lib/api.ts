@@ -1,6 +1,46 @@
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+async function formatErrorMessage(response: Response): Promise<string> {
+  const status = response.status;
+  try {
+    // We clone the response because .json() and .text() can only be called once
+    // But since we are in the error handler and won't use the response again,
+    // we don't strictly need to clone unless we want to fallback to text().
+    const data = await response.json();
+
+    // Handle FastAPI/Pydantic validation errors (array of errors)
+    if (data && Array.isArray(data.detail)) {
+      return data.detail
+        .map((err: any) => {
+          const field = err.loc ? err.loc[err.loc.length - 1] : "";
+          const msg = err.msg || "Invalid value";
+          return field ? `${field}: ${msg}` : msg;
+        })
+        .join(", ");
+    }
+
+    // Handle simple FastAPI detail string or generic message
+    const message = data?.detail || data?.message || data?.error;
+    if (message && typeof message === "string") {
+      return message;
+    }
+
+    // Fallback if we have JSON but no recognized message field
+    return `API Error ${status}: ${JSON.stringify(data)}`;
+  } catch {
+    // If not JSON, fallback to raw text or status
+    try {
+      // Note: if response.json() failed, we might be able to get text()
+      // but if the stream was already consumed, this might fail.
+      const text = await response.text();
+      return text || `API Error: ${status}`;
+    } catch {
+      return `API Error: ${status}`;
+    }
+  }
+}
+
 export async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -18,13 +58,7 @@ export async function fetchApi<T>(
   });
 
   if (!response.ok) {
-    let errorMessage = `API Error: ${response.status}`;
-    try {
-      const errorBody = await response.text();
-      errorMessage += ` - ${errorBody}`;
-    } catch {
-      // Ignored
-    }
+    const errorMessage = await formatErrorMessage(response);
     throw new Error(errorMessage);
   }
 
