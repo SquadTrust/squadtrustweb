@@ -1,14 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../api";
 
+export interface TrustScoreComponentBreakdown {
+  points: number;
+  max: number;
+  [key: string]: number;
+}
+
 export interface TrustScoreComponents {
-  fulfillment_rate?: number;
-  transaction_velocity?: number;
-  refund_rate?: number;
-  softpos_volume?: number;
-  chat_sentiment?: number;
-  account_age?: number;
-  [key: string]: number | undefined;
+  fulfillment_rate?: TrustScoreComponentBreakdown;
+  velocity?: TrustScoreComponentBreakdown;
+  refund_rate?: TrustScoreComponentBreakdown;
+  softpos_volume?: TrustScoreComponentBreakdown;
+  chat_sentiment?: TrustScoreComponentBreakdown;
+  account_age?: TrustScoreComponentBreakdown;
+  [key: string]: TrustScoreComponentBreakdown | undefined;
 }
 
 export interface TrustScoreResponse {

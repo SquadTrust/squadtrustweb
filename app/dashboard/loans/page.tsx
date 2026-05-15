@@ -30,20 +30,11 @@ const itemVariants: Variants = {
 
 const COMPONENT_LABELS: Record<string, string> = {
   fulfillment_rate: "Fulfillment Rate",
-  transaction_velocity: "Transaction Volume",
+  velocity: "Transaction Volume",
   refund_rate: "Dispute Rate",
   softpos_volume: "Soft POS Volume",
   chat_sentiment: "Buyer Sentiment",
   account_age: "Account Age",
-};
-
-const COMPONENT_WEIGHTS: Record<string, number> = {
-  fulfillment_rate: 0.35,
-  transaction_velocity: 0.20,
-  refund_rate: 0.15,
-  softpos_volume: 0.15,
-  chat_sentiment: 0.10,
-  account_age: 0.05,
 };
 
 export default function LoansPage() {
@@ -301,15 +292,18 @@ export default function LoansPage() {
           </div>
           <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
             {Object.entries(trustData.components).map(([key, value]) => {
-              const pct = Math.min(100, Math.round((value ?? 0) * 100));
-              const weight = COMPONENT_WEIGHTS[key] ?? 0;
+              const points = Number(value?.points ?? 0);
+              const max = Number(value?.max ?? 0);
+              const pct = Number.isFinite(points) && Number.isFinite(max) && max > 0
+                ? Math.max(0, Math.min(100, Math.round((points / max) * 100)))
+                : 0;
               const label = COMPONENT_LABELS[key] ?? key;
               return (
                 <div key={key} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium text-gray-700">{label}</span>
                     <span className={`text-xs font-bold ${pct >= 70 ? "text-green-600" : pct >= 40 ? "text-yellow-600" : "text-red-500"}`}>
-                      {pct}% <span className="text-gray-400 font-normal">({Math.round(weight * 100)}%)</span>
+                      {pct}% <span className="text-gray-400 font-normal">({Number.isFinite(points) ? Math.round(points) : 0}/{Number.isFinite(max) ? Math.round(max) : 0})</span>
                     </span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-1.5">
