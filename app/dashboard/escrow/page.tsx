@@ -10,6 +10,7 @@ import {
 } from "../../../lib/hooks/useEscrow";
 import { Plus, X } from "lucide-react";
 import { motion, type Variants } from "framer-motion";
+import { cn } from "../../../lib/utils";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -29,6 +30,7 @@ export default function EscrowPage() {
   const [merchantId, setMerchantId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -129,11 +131,36 @@ export default function EscrowPage() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(createdLink);
-                    // Could add a toast here
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
                   }}
-                  className="w-full mt-4 bg-primary text-white py-2 rounded-md font-medium text-sm hover:bg-primary/90 transition-colors"
+                  className={cn(
+                    "w-full mt-4 py-2 rounded-md font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2",
+                    isCopied
+                      ? "bg-green-500 text-white"
+                      : "bg-primary text-white hover:bg-primary/90"
+                  )}
                 >
-                  Copy Link
+                  {isCopied ? (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      Copied!
+                    </>
+                  ) : (
+                    "Copy Link"
+                  )}
                 </button>
                 <button
                   onClick={() => setIsFormOpen(false)}
