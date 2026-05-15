@@ -12,10 +12,13 @@ export function TrustScoreGauge({ score }: TrustScoreGaugeProps) {
 
   // Animate score from 0 to target score on mount
   useEffect(() => {
+    let animationFrameId: number;
+    let isMounted = true;
     const duration = 1500; // 1.5s
     const startTime = performance.now();
 
     const animate = (currentTime: number) => {
+      if (!isMounted) return;
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
@@ -25,11 +28,15 @@ export function TrustScoreGauge({ score }: TrustScoreGaugeProps) {
       setAnimatedScore(Math.floor(score * easeOut));
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
       }
     };
 
-    requestAnimationFrame(animate);
+    animationFrameId = requestAnimationFrame(animate);
+    return () => {
+      isMounted = false;
+      cancelAnimationFrame(animationFrameId);
+    };
   }, [score]);
 
   // Determine color based on score

@@ -28,15 +28,21 @@ export default function DashboardLayout({
   const [merchantName, setMerchantName] = useState<string>("");
 
   useEffect(() => {
+    let isMounted = true;
     const id = localStorage.getItem("merchant_id");
+
     if (!id) {
       router.push("/login");
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMerchantId(id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMerchantName(localStorage.getItem("merchant_name") ?? "");
+      if (isMounted) {
+        setMerchantId(id);
+        setMerchantName(localStorage.getItem("merchant_name") ?? "");
+      }
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const navItems = [
