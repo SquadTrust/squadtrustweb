@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { TrustScoreGauge } from "../../../components/TrustScoreGauge";
 import {
   CheckCircle2,
@@ -11,6 +11,8 @@ import {
 import { formatNaira } from "../../../lib/utils";
 import { motion, type Variants } from "framer-motion";
 import confetti from "canvas-confetti";
+import { useLoanEligibility, useApplyLoan } from "../../../lib/hooks/useLoan";
+import { useTrustScore } from "../../../lib/hooks/useTrust";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -26,59 +28,82 @@ const itemVariants: Variants = {
   },
 };
 
+const COMPONENT_LABELS: Record<string, string> = {
+  fulfillment_rate: "Fulfillment Rate",
+  transaction_velocity: "Transaction Volume",
+  refund_rate: "Dispute Rate",
+  softpos_volume: "Soft POS Volume",
+  chat_sentiment: "Buyer Sentiment",
+  account_age: "Account Age",
+};
+
+const COMPONENT_WEIGHTS: Record<string, number> = {
+  fulfillment_rate: 0.35,
+  transaction_velocity: 0.20,
+  refund_rate: 0.15,
+  softpos_volume: 0.15,
+  chat_sentiment: 0.10,
+  account_age: 0.05,
+};
+
 export default function LoansPage() {
-  const trustScore = 785;
-  const maxLoan = 50000000; // 500k in Kobo
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [loanAmount, setLoanAmount] = useState(0);
+  const [tenorDays, setTenorDays] = useState(30);
+  const [approvedMessage, setApprovedMessage] = useState("");
 
-  const [loanAmount, setLoanAmount] = useState(100000); // 100k Naira default display
-  const [isApplying, setIsApplying] = useState(false);
-  const [isApproved, setIsApproved] = useState(false);
+  useEffect(() => {
+    setMerchantId(localStorage.getItem("merchant_id"));
+  }, []);
 
-  const handleApply = () => {
-    setIsApplying(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsApplying(false);
-      setIsApproved(true);
+  const { data: eligibility, isLoading: eligLoading } =
+    useLoanEligibility(merchantId);
+  const { data: trustData, isLoading: trustLoading } =
+    useTrustScore(merchantId);
+  const applyLoan = useApplyLoan();
 
-      // Fire confetti
+  const trustScore = trustData?.total_score ?? 0;
+  const maxLoanNaira = eligibility?.max_amount_naira ?? 0;
+  const maxLoanKobo = maxLoanNaira * 100;
+
+  useEffect(() => {
+    if (maxLoanNaira > 0 && loanAmount === 0) {
+      setLoanAmount(Math.min(maxLoanNaira, 100000));
+    }
+  }, [maxLoanNaira, loanAmount]);
+
+  const handleApply = async () => {
+    if (!merchantId || !eligibility?.eligible || loanAmount <= 0) return;
+
+    try {
+      const result = await applyLoan.mutateAsync({
+        merchantId,
+        amountNaira: loanAmount,
+        tenorDays,
+      });
+
+      setApprovedMessage(result.message);
+
       const duration = 3 * 1000;
       const animationEnd = Date.now() + duration;
-      const defaults = {
-        startVelocity: 30,
-        spread: 360,
-        ticks: 60,
-        zIndex: 100,
-      };
-
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
       const randomInRange = (min: number, max: number) =>
         Math.random() * (max - min) + min;
 
-      const interval: ReturnType<typeof setInterval> = setInterval(function () {
+      const interval: ReturnType<typeof setInterval> = setInterval(() => {
         const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
+        if (timeLeft <= 0) return clearInterval(interval);
         const particleCount = 50 * (timeLeft / duration);
-        confetti(
-          Object.assign({}, defaults, {
-            particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-          }),
-        );
-        confetti(
-          Object.assign({}, defaults, {
-            particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-          }),
-        );
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
       }, 250);
-    }, 2000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Application failed";
+      alert(msg);
+    }
   };
 
-  if (isApproved) {
+  if (approvedMessage) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
         <motion.div
@@ -91,15 +116,10 @@ export default function LoansPage() {
         </motion.div>
         <h2 className="text-3xl font-bold text-gray-900">Loan Approved!</h2>
         <p className="text-lg text-gray-600 max-w-md">
-          Your loan of{" "}
-          <span className="font-semibold text-gray-900">
-            {formatNaira(loanAmount * 100)}
-          </span>{" "}
-          has been approved and instantly credited to your Squad Virtual
-          Account.
+          {approvedMessage}
         </p>
         <button
-          onClick={() => setIsApproved(false)}
+          onClick={() => setApprovedMessage("")}
           className="mt-8 bg-primary text-white px-6 py-2.5 rounded-md font-medium hover:bg-primary/90 transition-colors"
         >
           Return to Dashboard
@@ -107,6 +127,8 @@ export default function LoansPage() {
       </div>
     );
   }
+
+  const isLoading = eligLoading || trustLoading;
 
   return (
     <motion.div
@@ -136,22 +158,20 @@ export default function LoansPage() {
               <TrustScoreGauge score={trustScore} />
             </div>
             <div className="text-center">
-              <h3 className="text-xl font-bold text-green-400">
-                Excellent Standing
+              <h3 className={`text-xl font-bold ${trustScore >= 700 ? "text-green-400" : trustScore >= 400 ? "text-yellow-400" : "text-red-400"}`}>
+                {trustScore >= 850 ? "Excellent" : trustScore >= 700 ? "Good" : trustScore >= 500 ? "Fair" : trustScore >= 400 ? "Building" : "New Merchant"}
               </h3>
-              <p className="text-gray-300 text-sm mt-2">
-                You are in the top 15% of merchants. You qualify for our lowest
-                interest rates.
+              <p className="text-gray-300 text-sm mt-2 px-2">
+                {isLoading ? "Loading..." : (eligibility?.explanation ?? "Complete transactions to build your score.")}
               </p>
             </div>
           </div>
 
-          {/* Decorative background elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         </motion.div>
 
-        {/* Loan Application Flow */}
+        {/* Loan Application */}
         <motion.div
           variants={itemVariants}
           className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-5 md:p-6 flex flex-col"
@@ -162,127 +182,141 @@ export default function LoansPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">
-                Pre-approved Loan
+                {eligibility?.eligible ? "Pre-approved Loan" : "Loan Eligibility"}
               </h2>
               <p className="text-sm text-gray-500">
-                Available based on your Score
+                {isLoading ? "Checking eligibility..." : eligibility?.eligible
+                  ? "Available based on your Score"
+                  : `Score ${trustScore}/1000 — need 500+ to unlock`}
               </p>
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-500">Max Available</span>
-              <span className="font-semibold text-gray-900">
-                {formatNaira(maxLoan)}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full"
-                style={{ width: `${((loanAmount * 100) / maxLoan) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="space-y-4 flex-1">
-            <div>
-              <label
-                htmlFor="loanAmount"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Select Amount to Borrow (₦)
-              </label>
-              <input
-                type="range"
-                id="loanAmount"
-                min="10000"
-                max={maxLoan / 100}
-                step="10000"
-                value={loanAmount}
-                onChange={(e) => setLoanAmount(Number(e.target.value))}
-                className="w-full accent-primary"
-              />
-              <div className="text-center mt-2 text-3xl font-bold text-gray-900">
-                {formatNaira(loanAmount * 100)}
+          {!isLoading && !eligibility?.eligible ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-8 text-center space-y-3">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-gray-400" />
               </div>
-            </div>
-
-            <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-md flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <p>
-                Interest rate: 1.5% per month. Funds will be deducted
-                automatically from future Escrow/POS settlements.
+              <h3 className="font-semibold text-gray-700">Not Yet Eligible</h3>
+              <p className="text-sm text-gray-500 max-w-xs">
+                Complete more successful escrow transactions to reach a score of 500 and unlock working capital.
               </p>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-500">Max Available</span>
+                  <span className="font-semibold text-gray-900">
+                    {isLoading ? "..." : formatNaira(maxLoanKobo)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: maxLoanKobo > 0 ? `${((loanAmount * 100) / maxLoanKobo) * 100}%` : "0%" }}
+                  />
+                </div>
+              </div>
 
-          <button
-            onClick={handleApply}
-            disabled={isApplying}
-            className="w-full mt-6 bg-primary text-white py-3 rounded-lg font-bold text-lg hover:bg-primary/90 transition-all shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
-          >
-            {isApplying ? (
-              <span className="animate-pulse">Processing...</span>
-            ) : (
-              <>
-                Apply Now <ChevronRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
+              <div className="space-y-4 flex-1">
+                <div>
+                  <label htmlFor="loanAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Amount to Borrow (₦)
+                  </label>
+                  <input
+                    type="range"
+                    id="loanAmount"
+                    min="10000"
+                    max={maxLoanNaira || 100000}
+                    step="10000"
+                    value={loanAmount}
+                    onChange={(e) => setLoanAmount(Number(e.target.value))}
+                    className="w-full accent-primary"
+                    disabled={isLoading || !eligibility?.eligible}
+                  />
+                  <div className="text-center mt-2 text-3xl font-bold text-gray-900">
+                    {formatNaira(loanAmount * 100)}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Repayment Period</label>
+                  <div className="flex gap-2">
+                    {[30, 60, 90].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setTenorDays(days)}
+                        className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${tenorDays === days ? "bg-primary text-white border-primary" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
+                      >
+                        {days} days
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <p>
+                    Interest rate: {eligibility?.interest_rate_monthly ?? 2.5}% per month.
+                    Funds credited to your GTBank account within 5 minutes.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleApply}
+                disabled={applyLoan.isPending || isLoading || !eligibility?.eligible || loanAmount <= 0}
+                className="w-full mt-6 bg-primary text-white py-3 rounded-lg font-bold text-lg hover:bg-primary/90 transition-all shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {applyLoan.isPending ? (
+                  <span className="animate-pulse">Processing...</span>
+                ) : (
+                  <>Apply Now <ChevronRight className="w-5 h-5" /></>
+                )}
+              </button>
+            </>
+          )}
         </motion.div>
       </div>
 
       {/* Trust Score Breakdown */}
-      <motion.div
-        variants={itemVariants}
-        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-      >
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">
-            How your score is calculated
-          </h2>
-        </div>
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Completed Transactions
-              </span>
-              <span className="text-sm font-bold text-green-600">
-                High Impact
-              </span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5">
-              <div className="bg-green-500 h-1.5 rounded-full w-4/5"></div>
-            </div>
+      {trustData?.components && (
+        <motion.div
+          variants={itemVariants}
+          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+        >
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">
+              How your score is calculated
+            </h2>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Dispute Rate
-              </span>
-              <span className="text-sm font-bold text-green-600">
-                Excellent
-              </span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5">
-              <div className="bg-green-500 h-1.5 rounded-full w-[95%]"></div>
-            </div>
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {Object.entries(trustData.components).map(([key, value]) => {
+              const pct = Math.min(100, Math.round((value ?? 0) * 100));
+              const weight = COMPONENT_WEIGHTS[key] ?? 0;
+              const label = COMPONENT_LABELS[key] ?? key;
+              return (
+                <div key={key} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">{label}</span>
+                    <span className={`text-xs font-bold ${pct >= 70 ? "text-green-600" : pct >= 40 ? "text-yellow-600" : "text-red-500"}`}>
+                      {pct}% <span className="text-gray-400 font-normal">({Math.round(weight * 100)}%)</span>
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full ${pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-400"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Account Age
-              </span>
-              <span className="text-sm font-bold text-yellow-600">Medium</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5">
-              <div className="bg-yellow-500 h-1.5 rounded-full w-1/2"></div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

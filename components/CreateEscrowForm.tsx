@@ -20,7 +20,7 @@ export function CreateEscrowForm({
   const [customerPhone, setCustomerPhone] = useState("");
   const [description, setDescription] = useState("");
   const [amountKobo, setAmountKobo] = useState(0);
-  const [deliveryMethod, setDeliveryMethod] = useState("pickup");
+  const [deliveryMethod, setDeliveryMethod] = useState("dispatch");
   const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -117,9 +117,9 @@ export function CreateEscrowForm({
           onChange={(e) => setDeliveryMethod(e.target.value)}
           className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
+          <option value="dispatch">Home Delivery</option>
           <option value="pickup">Store Pickup</option>
-          <option value="delivery">Home Delivery</option>
-          <option value="digital">Digital Transfer</option>
+          <option value="courier">Courier Service</option>
         </select>
       </div>
 

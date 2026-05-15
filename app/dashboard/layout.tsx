@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   X,
-  Terminal,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -26,6 +25,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [merchantName, setMerchantName] = useState<string>("");
 
   useEffect(() => {
     const id = localStorage.getItem("merchant_id");
@@ -34,6 +34,8 @@ export default function DashboardLayout({
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMerchantId(id);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMerchantName(localStorage.getItem("merchant_name") ?? "");
     }
   }, [router]);
 
@@ -42,7 +44,6 @@ export default function DashboardLayout({
     { name: "Escrow", href: "/dashboard/escrow", icon: Lock },
     { name: "Soft POS", href: "/dashboard/softpos", icon: Smartphone },
     { name: "Loans & Score", href: "/dashboard/loans", icon: TrendingUp },
-    { name: "Demo Control", href: "/admin/demo-control", icon: Terminal },
   ];
 
   const handleLogout = () => {
@@ -113,9 +114,11 @@ export default function DashboardLayout({
 
         <div className="p-4 border-t border-gray-200">
           <div className="mb-4 px-3">
-            <p className="text-xs text-gray-500 font-medium">MERCHANT ID</p>
-            <p className="text-sm text-gray-900 font-mono truncate">
-              {merchantId}
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">
+              {merchantName || "Merchant"}
+            </p>
+            <p className="text-xs text-gray-400 font-mono truncate mt-0.5">
+              {merchantId?.slice(0, 8)}…
             </p>
           </div>
           <button

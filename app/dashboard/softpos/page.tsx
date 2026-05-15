@@ -1,11 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Smartphone, RefreshCw, Filter, TrendingUp } from "lucide-react";
-import {
-  TransactionRow,
-  type Transaction,
-} from "../../../components/TransactionRow";
+import { TransactionRow } from "../../../components/TransactionRow";
 import {
   BarChart,
   Bar,
@@ -17,6 +14,7 @@ import {
 } from "recharts";
 import { formatNaira } from "../../../lib/utils";
 import { motion, type Variants } from "framer-motion";
+import { useSoftPosTransactions } from "../../../lib/hooks/useSoftPos";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -32,59 +30,52 @@ const itemVariants: Variants = {
   },
 };
 
-// Mock Soft POS transactions
-const MOCK_SOFTPOS_TXNS: Transaction[] = [
-  {
-    id: "1",
-    reference: "SP_101",
-    amountKobo: 1250000,
-    status: "released",
-    timestamp: new Date().toISOString(),
-    description: "In-store Purchase",
-  },
-  {
-    id: "2",
-    reference: "SP_102",
-    amountKobo: 450000,
-    status: "released",
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-    description: "In-store Purchase",
-  },
-  {
-    id: "3",
-    reference: "SP_103",
-    amountKobo: 800000,
-    status: "refunded",
-    timestamp: new Date(Date.now() - 7200000).toISOString(),
-    description: "In-store Purchase",
-  },
-  {
-    id: "4",
-    reference: "SP_104",
-    amountKobo: 2200000,
-    status: "released",
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-    description: "In-store Purchase",
-  },
-];
+function buildWeeklyChart(
+  transactions: Array<{ amountKobo: number; timestamp: string; status: string }>,
+) {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const buckets: Record<string, number> = {};
+  days.forEach((d) => (buckets[d] = 0));
 
-const MOCK_CHART_DATA = [
-  { name: "Mon", amount: 45000 },
-  { name: "Tue", amount: 82000 },
-  { name: "Wed", amount: 60000 },
-  { name: "Thu", amount: 120000 },
-  { name: "Fri", amount: 95000 },
-  { name: "Sat", amount: 150000 },
-  { name: "Sun", amount: 130000 },
-];
+  const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  for (const tx of transactions) {
+    if (tx.status !== "released") continue;
+    const ts = new Date(tx.timestamp).getTime();
+    if (ts < sevenDaysAgo) continue;
+    const day = days[new Date(tx.timestamp).getDay()];
+    buckets[day] += tx.amountKobo / 100;
+  }
+
+  // Rotate so today is last
+  const todayIdx = new Date().getDay();
+  const ordered = [];
+  for (let i = 1; i <= 7; i++) {
+    const dayIdx = (todayIdx + i) % 7;
+    ordered.push({ name: days[dayIdx], amount: buckets[days[dayIdx]] });
+  }
+  return ordered;
+}
 
 export default function SoftPosPage() {
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [merchantId, setMerchantId] = useState<string | null>(null);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1000);
-  };
+  useEffect(() => {
+    setMerchantId(localStorage.getItem("merchant_id"));
+  }, []);
+
+  const { data: transactions = [], isLoading, refetch } =
+    useSoftPosTransactions(merchantId);
+
+  const todayStr = new Date().toDateString();
+  const todaySalesKobo = transactions
+    .filter(
+      (tx) =>
+        tx.status === "released" &&
+        new Date(tx.timestamp).toDateString() === todayStr,
+    )
+    .reduce((sum, tx) => sum + tx.amountKobo, 0);
+
+  const chartData = buildWeeklyChart(transactions);
 
   return (
     <motion.div
@@ -105,11 +96,12 @@ export default function SoftPosPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleRefresh}
+            onClick={() => refetch()}
+            disabled={isLoading}
             className="p-2 bg-white border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <RefreshCw
-              className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`}
+              className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`}
             />
           </button>
           <button className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">
@@ -129,12 +121,12 @@ export default function SoftPosPage() {
               Today&apos;s Sales
             </p>
             <h3 className="text-3xl font-bold text-gray-900 mt-2">
-              {formatNaira(1700000)}
+              {isLoading ? "..." : formatNaira(todaySalesKobo)}
             </h3>
           </div>
           <div className="mt-4 flex items-center gap-2 text-sm text-green-600 bg-green-50 w-fit px-2 py-1 rounded-md font-medium">
             <TrendingUp className="w-4 h-4" />
-            +12.5% vs yesterday
+            {transactions.filter((t) => t.status === "released").length} completed
           </div>
         </motion.div>
 
@@ -148,7 +140,7 @@ export default function SoftPosPage() {
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={MOCK_CHART_DATA}
+                data={chartData}
                 margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
               >
                 <CartesianGrid
@@ -176,7 +168,7 @@ export default function SoftPosPage() {
                     border: "none",
                     boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                   }}
-                  formatter={(value: any) => [
+                  formatter={(value: unknown) => [
                     formatNaira(Number(value || 0) * 100),
                     "Sales",
                   ]}
@@ -201,9 +193,19 @@ export default function SoftPosPage() {
           </button>
         </div>
         <div className="divide-y divide-gray-100">
-          {MOCK_SOFTPOS_TXNS.map((tx) => (
-            <TransactionRow key={tx.id} transaction={tx} />
-          ))}
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500 text-sm">
+              Loading transactions...
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 text-sm">
+              No Soft POS transactions yet. Accept payments via the mobile app.
+            </div>
+          ) : (
+            transactions.map((tx) => (
+              <TransactionRow key={tx.id} transaction={tx} />
+            ))
+          )}
         </div>
       </motion.div>
     </motion.div>

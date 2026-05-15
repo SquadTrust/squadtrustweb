@@ -6,6 +6,7 @@ import { TransactionRow } from "../../../components/TransactionRow";
 import {
   useEscrowTransactions,
   useCreateEscrow,
+  useConfirmDelivery,
 } from "../../../lib/hooks/useEscrow";
 import { Plus, X } from "lucide-react";
 import { motion, type Variants } from "framer-motion";
@@ -37,6 +38,7 @@ export default function EscrowPage() {
   const { data: transactions = [], isLoading } =
     useEscrowTransactions(merchantId);
   const createEscrow = useCreateEscrow();
+  const confirmDelivery = useConfirmDelivery(merchantId);
 
   const handleCreateSubmit = async (data: {
     customerPhone: string;
@@ -168,7 +170,11 @@ export default function EscrowPage() {
             </div>
           ) : transactions.length > 0 ? (
             transactions.map((tx) => (
-              <TransactionRow key={tx.id} transaction={tx} />
+              <TransactionRow
+                key={tx.id}
+                transaction={tx}
+                onConfirmDelivery={(ref) => confirmDelivery.mutateAsync(ref).then(() => {})}
+              />
             ))
           ) : (
             <div className="p-8 text-center text-gray-500 text-sm">

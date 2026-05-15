@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { TrustScoreGauge } from "../../components/TrustScoreGauge";
 import { TransactionRow } from "../../components/TransactionRow";
 import { useEscrowTransactions } from "../../lib/hooks/useEscrow";
+import { useTrustScore } from "../../lib/hooks/useTrust";
 import { ShieldAlert, Wallet } from "lucide-react";
 import Link from "next/link";
 import { formatNaira } from "../../lib/utils";
@@ -30,18 +31,30 @@ export default function DashboardOverview() {
   const [merchantId, setMerchantId] = useState<string | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMerchantId(localStorage.getItem("merchant_id"));
   }, []);
 
   const { data: transactions = [], isLoading } =
     useEscrowTransactions(merchantId);
 
-  const trustScore = 785; // This would typically come from an API
+  const { data: trustData } = useTrustScore(merchantId);
+
+  const trustScore = trustData?.total_score ?? 0;
+  const loanEligibility = trustData?.loan_eligibility_naira ?? 0;
+
   const totalEscrow = transactions.reduce(
     (acc, tx) => acc + (tx.status === "funded" ? tx.amountKobo : 0),
     0,
   );
+
+  const scoreDescription =
+    trustScore >= 850
+      ? `Excellent. You qualify for instant loans up to ${formatNaira(loanEligibility * 100)}.`
+      : trustScore >= 700
+        ? `Good standing. Loan limit: ${formatNaira(loanEligibility * 100)}.`
+        : trustScore >= 500
+          ? `Fair. Complete more transactions to unlock better loan rates.`
+          : "Build your score by completing more escrow transactions.";
 
   return (
     <motion.div
@@ -68,7 +81,7 @@ export default function DashboardOverview() {
           </h2>
           <TrustScoreGauge score={trustScore} />
           <p className="text-center text-xs text-gray-500 mt-4">
-            Excellent. You qualify for instant loans up to ₦500,000.
+            {scoreDescription}
           </p>
         </motion.div>
 
@@ -110,36 +123,41 @@ export default function DashboardOverview() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">
-                  Available to Withdraw
+                  Loan Available
                 </p>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {formatNaira(15000000)}
+                  {formatNaira(loanEligibility * 100)}
                 </h3>
               </div>
             </div>
-            <button className="text-left text-sm font-medium text-primary hover:text-primary/80 transition-colors">
-              Withdraw Funds &rarr;
-            </button>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            className="bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-sm p-5 md:p-6 text-white sm:col-span-2 flex items-center justify-between transition-all"
-          >
-            <div>
-              <h3 className="text-lg font-bold">Grow your business</h3>
-              <p className="text-primary-foreground/80 text-sm mt-1 max-w-sm">
-                With a Trust Score of {trustScore}, you&apos;re pre-approved for
-                low-interest credit.
-              </p>
-            </div>
             <Link
               href="/dashboard/loans"
-              className="bg-white text-primary px-4 py-2 rounded-md text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors"
+              className="text-left text-sm font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              Apply Now
+              Apply for Working Capital &rarr;
             </Link>
           </motion.div>
+
+          {loanEligibility > 0 && (
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              className="bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-sm p-5 md:p-6 text-white sm:col-span-2 flex items-center justify-between transition-all"
+            >
+              <div>
+                <h3 className="text-lg font-bold">Grow your business</h3>
+                <p className="text-primary-foreground/80 text-sm mt-1 max-w-sm">
+                  With a Trust Score of {trustScore}, you&apos;re pre-approved
+                  for low-interest credit.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/loans"
+                className="bg-white text-primary px-4 py-2 rounded-md text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                Apply Now
+              </Link>
+            </motion.div>
+          )}
         </motion.div>
       </div>
 
