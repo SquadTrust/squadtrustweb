@@ -85,7 +85,12 @@ function useLaunchApp() {
 
 export default function SoftPosPage() {
   const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
   const launchApp = useLaunchApp();
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -141,6 +146,7 @@ export default function SoftPosPage() {
           </button>
           <button
             onClick={launchApp}
+            formTarget="_blank"
             className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
             title="Opens the SquadTrust app if installed, otherwise installs it"
           >
@@ -177,7 +183,8 @@ export default function SoftPosPage() {
             Weekly Volume
           </h3>
           <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            {hasMounted && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
               <BarChart
                 data={chartData}
                 margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
@@ -215,6 +222,7 @@ export default function SoftPosPage() {
                 <Bar dataKey="amount" fill="#0B6E4F" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
         </motion.div>
       </div>
