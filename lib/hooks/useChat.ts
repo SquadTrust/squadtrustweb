@@ -8,6 +8,10 @@ export interface ChatMessage {
   is_voice: boolean;
   sentiment_score: number | null;
   created_at: string;
+  is_encrypted: boolean;
+  has_attachment: boolean;
+  attachment_filename?: string | null;
+  attachment_data?: string | null;
 }
 
 interface ChatHistoryResponse {
@@ -19,6 +23,8 @@ interface SendMessagePayload {
   sender: "buyer" | "merchant";
   message: string;
   is_voice?: boolean;
+  attachment_data?: string;
+  attachment_filename?: string;
 }
 
 export function useChatHistory(transactionRef: string | null) {

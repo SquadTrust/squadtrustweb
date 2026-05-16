@@ -14,11 +14,13 @@ import {
   Mic,
   MicOff,
   MessageSquare,
+  Paperclip,
 } from "lucide-react";
 import { formatNaira } from "../../../lib/utils";
 import { useEscrowDetail } from "../../../lib/hooks/useEscrow";
-import { useChatHistory, useSendMessage } from "../../../lib/hooks/useChat";
+import { useChatHistory, useSendMessage, type ChatMessage } from "../../../lib/hooks/useChat";
 import { fetchApi } from "../../../lib/api";
+import { deriveE2EKey, encryptPayload, decryptPayload, type ChatPayload } from "../../../lib/chatCrypto";
 
 function ChatPanel({ transactionRef }: { transactionRef: string }) {
   const { data: chatData } = useChatHistory(transactionRef);
@@ -27,13 +29,39 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
   const [isVoice, setIsVoice] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [e2eEnabled, setE2eEnabled] = useState(false);
+  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
+  const [decryptedMap, setDecryptedMap] = useState<Map<string, { t: string; d?: string; n?: string; v?: boolean }>>(new Map());
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const messages = chatData?.messages ?? [];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
+
+  // Decrypt all encrypted messages when messages or key changes
+  useEffect(() => {
+    if (!cryptoKey) { setDecryptedMap(new Map()); return; }
+    const run = async () => {
+      const map = new Map<string, { t: string; d?: string; n?: string; v?: boolean }>();
+      for (const msg of messages) {
+        if (msg.is_encrypted) {
+          try {
+            const p = await decryptPayload(msg.message, cryptoKey);
+            map.set(msg.id, p);
+          } catch {
+            map.set(msg.id, { t: "[Could not decrypt]" });
+          }
+        }
+      }
+      setDecryptedMap(map);
+    };
+    run();
+  }, [messages, cryptoKey]);
 
   function startVoice() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,36 +86,102 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
     recognition.start();
   }
 
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      setSendError("File too large — max 500KB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAttachmentPreview(ev.target?.result as string);
+      setAttachmentFile(file);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed && !attachmentPreview) return;
     setSendError("");
     try {
+      let messageToSend = trimmed;
+      let isVoiceToSend = isVoice;
+      let attData: string | undefined = attachmentPreview ?? undefined;
+      let attName: string | undefined = attachmentFile?.name;
+
+      if (e2eEnabled && cryptoKey) {
+        const payload: ChatPayload = { t: trimmed, v: isVoice, d: attData, n: attName };
+        messageToSend = await encryptPayload(payload, cryptoKey);
+        isVoiceToSend = false;
+        attData = undefined;
+        attName = undefined;
+      }
+
       await sendMessage.mutateAsync({
         sender: "buyer",
-        message: trimmed,
-        is_voice: isVoice,
+        message: messageToSend,
+        is_voice: isVoiceToSend,
+        attachment_data: attData,
+        attachment_filename: attName,
       });
       setText("");
       setIsVoice(false);
+      setAttachmentFile(null);
+      setAttachmentPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err: unknown) {
       setSendError(err instanceof Error ? err.message : "Failed to send");
     }
   }
 
+  function getDisplayContent(msg: ChatMessage): { text: string; isVoice: boolean; attData?: string; attName?: string; isEncrypted: boolean } {
+    if (msg.is_encrypted) {
+      const dec = decryptedMap.get(msg.id);
+      if (dec) return { text: dec.t, isVoice: dec.v ?? false, attData: dec.d, attName: dec.n, isEncrypted: true };
+      return { text: cryptoKey ? "Decrypting..." : "🔒 Encrypted", isVoice: false, isEncrypted: true };
+    }
+    return {
+      text: msg.message,
+      isVoice: msg.is_voice,
+      attData: msg.attachment_data ?? undefined,
+      attName: msg.attachment_filename ?? undefined,
+      isEncrypted: false,
+    };
+  }
+
   return (
     <div className="border-t border-gray-100 flex flex-col">
+      {/* Header with E2E toggle */}
       <div className="px-4 py-3 bg-gray-50 flex items-center gap-2">
         <MessageSquare className="w-4 h-4 text-gray-500" />
         <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
           Chat with Seller
         </span>
-        {messages.length > 0 && (
-          <span className="ml-auto text-xs text-gray-400">
-            {messages.length} message{messages.length !== 1 ? "s" : ""}
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={async () => {
+            const next = !e2eEnabled;
+            setE2eEnabled(next);
+            if (next) {
+              const k = await deriveE2EKey(transactionRef);
+              setCryptoKey(k);
+            } else {
+              setCryptoKey(null);
+              setDecryptedMap(new Map());
+            }
+          }}
+          className={`ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-colors ${
+            e2eEnabled
+              ? "bg-primary text-white border-primary"
+              : "bg-white text-gray-500 border-gray-300 hover:border-primary"
+          }`}
+        >
+          <Lock className="w-3 h-3" />
+          {e2eEnabled ? "E2E On" : "Encrypt"}
+        </button>
       </div>
 
       {/* Message list */}
@@ -99,6 +193,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
         )}
         {messages.map((msg) => {
           const isBuyer = msg.sender === "buyer";
+          const display = getDisplayContent(msg);
           return (
             <div
               key={msg.id}
@@ -111,12 +206,39 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
                     : "bg-gray-100 text-gray-900 rounded-bl-sm"
                 }`}
               >
-                {msg.is_voice && (
-                  <span className="inline-flex items-center gap-1 text-xs opacity-75 mb-1 mr-1">
-                    <Mic className="w-3 h-3" /> Voice ·{" "}
-                  </span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {display.isVoice && (
+                    <span className="inline-flex items-center gap-1 text-xs opacity-75 mb-1 mr-1">
+                      <Mic className="w-3 h-3" /> Voice ·{" "}
+                    </span>
+                  )}
+                  {display.isEncrypted && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] opacity-75 mb-1 mr-1">
+                      <Lock className="w-2.5 h-2.5" /> E2E ·{" "}
+                    </span>
+                  )}
+                </div>
+                {display.text}
+                {display.attData && (
+                  <div className="mt-2">
+                    {display.attData.startsWith("data:image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={display.attData}
+                        alt={display.attName ?? "attachment"}
+                        className="max-h-40 rounded-lg object-contain"
+                      />
+                    ) : (
+                      <a
+                        href={display.attData}
+                        download={display.attName ?? "file"}
+                        className="text-xs underline opacity-80 hover:opacity-100"
+                      >
+                        {display.attName ?? "Download file"}
+                      </a>
+                    )}
+                  </div>
                 )}
-                {msg.message}
               </div>
               <span className="text-[10px] text-gray-400 mt-0.5 px-1">
                 {new Date(msg.created_at).toLocaleTimeString([], {
@@ -130,7 +252,48 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Attachment preview */}
+      {attachmentPreview && (
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+            {attachmentPreview.startsWith("data:image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={attachmentPreview}
+                alt="preview"
+                className="h-10 w-10 rounded object-cover flex-shrink-0"
+              />
+            ) : (
+              <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            )}
+            <span className="text-xs text-gray-600 truncate flex-1">
+              {attachmentFile?.name ?? "attachment"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setAttachmentFile(null);
+                setAttachmentPreview(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              className="text-gray-400 hover:text-gray-600 flex-shrink-0 text-sm leading-none"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileSelect}
+        accept="image/*,application/pdf,.txt,.doc,.docx"
+      />
+
+      {/* Input row */}
       <form onSubmit={handleSend} className="px-4 pb-4 flex gap-2 items-end">
         <div className="flex-1 relative">
           <input
@@ -152,6 +315,15 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
         </div>
         <button
           type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sendMessage.isPending}
+          className="p-2 rounded-xl bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+          title="Attach file"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
           onClick={startVoice}
           disabled={isListening || sendMessage.isPending}
           className={`p-2 rounded-xl transition-colors ${
@@ -164,7 +336,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
         </button>
         <button
           type="submit"
-          disabled={!text.trim() || sendMessage.isPending}
+          disabled={(!text.trim() && !attachmentPreview) || sendMessage.isPending}
           className="p-2 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-40 transition-colors"
         >
           <Send className="w-4 h-4" />
