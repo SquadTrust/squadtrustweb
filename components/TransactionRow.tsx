@@ -12,6 +12,10 @@ export interface Transaction {
   status: TransactionStatus;
   timestamp: string;
   description?: string;
+  releasedBy?: string;
+  refundReason?: string;
+  aiVerdict?: string;
+  aiConfidence?: number;
 }
 
 interface TransactionRowProps {

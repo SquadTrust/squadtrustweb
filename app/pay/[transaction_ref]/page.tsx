@@ -15,14 +15,14 @@ import {
   MicOff,
   MessageSquare,
   Paperclip,
+  X,
 } from "lucide-react";
 import { formatNaira } from "../../../lib/utils";
 import { useEscrowDetail } from "../../../lib/hooks/useEscrow";
-import { useChatHistory, useSendMessage, type ChatMessage } from "../../../lib/hooks/useChat";
+import { useChatHistory, useSendMessage } from "../../../lib/hooks/useChat";
 import { fetchApi } from "../../../lib/api";
-import { deriveE2EKey, encryptPayload, decryptPayload, type ChatPayload } from "../../../lib/chatCrypto";
 
-function ChatPanel({ transactionRef }: { transactionRef: string }) {
+function ChatPanel({ transactionRef, onClose }: { transactionRef: string; onClose: () => void }) {
   const { data: chatData } = useChatHistory(transactionRef);
   const sendMessage = useSendMessage(transactionRef);
   const [text, setText] = useState("");
@@ -31,9 +31,6 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
   const [sendError, setSendError] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
-  const [e2eEnabled, setE2eEnabled] = useState(false);
-  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
-  const [decryptedMap, setDecryptedMap] = useState<Map<string, { t: string; d?: string; n?: string; v?: boolean }>>(new Map());
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,29 +39,6 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
-
-  // Decrypt all encrypted messages when messages or key changes
-  useEffect(() => {
-    if (!cryptoKey) {
-      setDecryptedMap(prev => prev.size === 0 ? prev : new Map());
-      return;
-    }
-    const run = async () => {
-      const map = new Map<string, { t: string; d?: string; n?: string; v?: boolean }>();
-      for (const msg of chatData?.messages || []) {
-        if (msg.is_encrypted || msg.message.startsWith("ENC:")) {
-          try {
-            const p = await decryptPayload(msg.message, cryptoKey);
-            map.set(msg.id, p);
-          } catch {
-            map.set(msg.id, { t: "[Could not decrypt]" });
-          }
-        }
-      }
-      setDecryptedMap(map);
-    };
-    run();
-  }, [chatData?.messages, cryptoKey]);
 
   function startVoice() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,8 +52,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
     recognition.interimResults = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setText(transcript);
+      setText(event.results[0][0].transcript);
       setIsVoice(true);
     };
     recognition.onerror = () => setIsListening(false);
@@ -110,25 +83,12 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
     if (!trimmed && !attachmentPreview) return;
     setSendError("");
     try {
-      let messageToSend = trimmed;
-      let isVoiceToSend = isVoice;
-      let attData: string | undefined = attachmentPreview ?? undefined;
-      let attName: string | undefined = attachmentFile?.name;
-
-      if (e2eEnabled && cryptoKey) {
-        const payload: ChatPayload = { t: trimmed, v: isVoice, d: attData, n: attName };
-        messageToSend = await encryptPayload(payload, cryptoKey);
-        isVoiceToSend = false;
-        attData = undefined;
-        attName = undefined;
-      }
-
       await sendMessage.mutateAsync({
         sender: "buyer",
-        message: messageToSend,
-        is_voice: isVoiceToSend,
-        attachment_data: attData,
-        attachment_filename: attName,
+        message: trimmed,
+        is_voice: isVoice,
+        attachment_data: attachmentPreview ?? undefined,
+        attachment_filename: attachmentFile?.name,
       });
       setText("");
       setIsVoice(false);
@@ -140,103 +100,68 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
     }
   }
 
-  function getDisplayContent(msg: ChatMessage): { text: string; isVoice: boolean; attData?: string; attName?: string; isEncrypted: boolean } {
-    const isEncrypted = msg.is_encrypted || msg.message.startsWith("ENC:");
-    if (isEncrypted) {
-      const dec = decryptedMap.get(msg.id);
-      if (dec) return { text: dec.t, isVoice: dec.v ?? false, attData: dec.d, attName: dec.n, isEncrypted: true };
-      return { text: cryptoKey ? "Decrypting..." : "🔒 Encrypted", isVoice: false, isEncrypted: true };
-    }
-    return {
-      text: msg.message,
-      isVoice: msg.is_voice,
-      attData: msg.attachment_data ?? undefined,
-      attName: msg.attachment_filename ?? undefined,
-      isEncrypted: false,
-    };
-  }
-
   return (
-    <div className="border-t border-gray-100 flex flex-col">
-      {/* Header with E2E toggle */}
-      <div className="px-4 py-3 bg-gray-50 flex items-center gap-2">
-        <MessageSquare className="w-4 h-4 text-gray-500" />
-        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
-          Chat with Seller
-        </span>
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="px-4 py-4 bg-white border-b border-gray-200 flex items-center gap-3 flex-shrink-0 shadow-sm">
         <button
           type="button"
-          onClick={async () => {
-            const next = !e2eEnabled;
-            setE2eEnabled(next);
-            if (next) {
-              const k = await deriveE2EKey(transactionRef);
-              setCryptoKey(k);
-            } else {
-              setCryptoKey(null);
-              setDecryptedMap(new Map());
-            }
-          }}
-          className={`ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-colors ${e2eEnabled
-              ? "bg-primary text-white border-primary"
-              : "bg-white text-gray-500 border-gray-300 hover:border-primary"
-            }`}
+          onClick={onClose}
+          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          aria-label="Close chat"
         >
-          <Lock className="w-3 h-3" />
-          {e2eEnabled ? "E2E On" : "Encrypt"}
+          <X className="w-5 h-5 text-gray-600" />
         </button>
+        <MessageSquare className="w-5 h-5 text-primary" />
+        <span className="font-bold text-gray-900">Chat with Seller</span>
+        {messages.length > 0 && (
+          <span className="ml-auto text-xs text-gray-400">{messages.length} messages</span>
+        )}
       </div>
 
       {/* Message list */}
-      <div className="flex flex-col gap-2 px-4 py-3 max-h-60 overflow-y-auto">
+      <div className="flex-1 flex flex-col gap-2 px-4 py-3 overflow-y-auto">
         {messages.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-4">
+          <p className="text-xs text-gray-400 text-center py-8">
             No messages yet. Say hello to the seller!
           </p>
         )}
         {messages.map((msg) => {
           const isBuyer = msg.sender === "buyer";
-          const display = getDisplayContent(msg);
           return (
             <div
               key={msg.id}
               className={`flex flex-col max-w-[80%] ${isBuyer ? "self-end items-end" : "self-start items-start"}`}
             >
               <div
-                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isBuyer
+                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                  isBuyer
                     ? "bg-primary text-white rounded-br-sm"
                     : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                  }`}
+                }`}
               >
-                <div className="flex items-center gap-1 flex-wrap">
-                  {display.isVoice && (
-                    <span className="inline-flex items-center gap-1 text-xs opacity-75 mb-1 mr-1">
-                      <Mic className="w-3 h-3" /> Voice ·{" "}
-                    </span>
-                  )}
-                  {display.isEncrypted && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] opacity-75 mb-1 mr-1">
-                      <Lock className="w-2.5 h-2.5" /> E2E ·{" "}
-                    </span>
-                  )}
-                </div>
-                {display.text}
-                {display.attData && (
+                {msg.is_voice && (
+                  <span className="flex items-center gap-1 text-xs opacity-75 mb-1">
+                    <Mic className="w-3 h-3" /> Voice ·
+                  </span>
+                )}
+                {msg.message}
+                {msg.has_attachment && msg.attachment_data && (
                   <div className="mt-2">
-                    {display.attData.startsWith("data:image/") ? (
+                    {msg.attachment_data.startsWith("data:image/") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={display.attData}
-                        alt={display.attName ?? "attachment"}
+                        src={msg.attachment_data}
+                        alt={msg.attachment_filename ?? "attachment"}
                         className="max-h-40 rounded-lg object-contain"
                       />
                     ) : (
                       <a
-                        href={display.attData}
-                        download={display.attName ?? "file"}
+                        href={msg.attachment_data}
+                        download={msg.attachment_filename ?? "file"}
                         className="text-xs underline opacity-80 hover:opacity-100"
                       >
-                        {display.attName ?? "Download file"}
+                        {msg.attachment_filename ?? "Download file"}
                       </a>
                     )}
                   </div>
@@ -256,7 +181,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
 
       {/* Attachment preview */}
       {attachmentPreview && (
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-2 flex-shrink-0">
           <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
             {attachmentPreview.startsWith("data:image/") ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -278,15 +203,14 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
                 setAttachmentPreview(null);
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
-              className="text-gray-400 hover:text-gray-600 flex-shrink-0 text-sm leading-none"
+              className="text-gray-400 hover:text-gray-600 flex-shrink-0"
             >
-              ×
+              <X className="w-3 h-3" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -296,7 +220,10 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
       />
 
       {/* Input row */}
-      <form onSubmit={handleSend} className="px-4 pb-4 flex gap-2 items-end">
+      <form
+        onSubmit={handleSend}
+        className="px-4 py-3 border-t border-gray-100 flex gap-2 items-end flex-shrink-0"
+      >
         <div className="flex-1 relative">
           <input
             type="text"
@@ -307,7 +234,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
             }}
             placeholder={isListening ? "Listening…" : "Type a message…"}
             disabled={isListening}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 pr-8 disabled:bg-gray-50"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-gray-50"
           />
           {isVoice && (
             <span className="absolute right-2 top-2.5 text-[10px] text-primary font-semibold">
@@ -328,10 +255,11 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
           type="button"
           onClick={startVoice}
           disabled={isListening || sendMessage.isPending}
-          className={`p-2 rounded-xl transition-colors ${isListening
+          className={`p-2 rounded-xl transition-colors ${
+            isListening
               ? "bg-red-100 text-red-600 animate-pulse"
               : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-            }`}
+          }`}
         >
           {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </button>
@@ -345,7 +273,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
       </form>
 
       {sendError && (
-        <p className="px-4 pb-3 text-xs text-red-500">{sendError}</p>
+        <p className="px-4 pb-3 text-xs text-red-500 flex-shrink-0">{sendError}</p>
       )}
     </div>
   );
@@ -359,6 +287,7 @@ export default function BuyerPaymentPage() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
 
   const { data: escrow, isLoading, error } = useEscrowDetail(ref);
 
@@ -374,9 +303,7 @@ export default function BuyerPaymentPage() {
     try {
       await fetchApi(`/demo/fund-escrow/${ref}`, { method: "POST" });
     } catch (err: unknown) {
-      setActionError(
-        err instanceof Error ? err.message : "Simulation failed",
-      );
+      setActionError(err instanceof Error ? err.message : "Simulation failed");
     } finally {
       setIsSimulating(false);
     }
@@ -388,9 +315,7 @@ export default function BuyerPaymentPage() {
     try {
       await fetchApi(`/escrow/${ref}/buyer-confirm`, { method: "POST" });
     } catch (err: unknown) {
-      setActionError(
-        err instanceof Error ? err.message : "Confirmation failed",
-      );
+      setActionError(err instanceof Error ? err.message : "Confirmation failed");
     } finally {
       setIsConfirming(false);
     }
@@ -595,56 +520,64 @@ export default function BuyerPaymentPage() {
 
                   {(escrow.status === "released" ||
                     escrow.status === "ai_verifying") && (
-                      <motion.div
-                        key="released"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-8 space-y-4"
-                      >
-                        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                          <ShieldCheck className="w-10 h-10 text-primary" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900">
-                          {escrow.status === "released"
-                            ? "Transaction Complete"
-                            : "AI Verifying Delivery"}
-                        </h3>
-                        <p className="text-gray-600 px-4">
-                          {escrow.status === "released"
-                            ? "Funds have been released to the seller. Thank you for using SquadTrust!"
-                            : "Our AI is verifying delivery. Funds will be released shortly."}
-                        </p>
-                      </motion.div>
-                    )}
+                    <motion.div
+                      key="released"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-center py-8 space-y-4"
+                    >
+                      <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <ShieldCheck className="w-10 h-10 text-primary" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {escrow.status === "released"
+                          ? "Transaction Complete"
+                          : "AI Verifying Delivery"}
+                      </h3>
+                      <p className="text-gray-600 px-4">
+                        {escrow.status === "released"
+                          ? "Funds have been released to the seller. Thank you for using SquadTrust!"
+                          : "Our AI is verifying delivery. Funds will be released shortly."}
+                      </p>
+                    </motion.div>
+                  )}
 
                   {(escrow.status === "refunded" ||
                     escrow.status === "expired") && (
-                      <motion.div
-                        key="refunded"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-8 space-y-4"
-                      >
-                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                          <AlertTriangle className="w-10 h-10 text-red-500" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900">
-                          {escrow.status === "refunded"
-                            ? "Payment Refunded"
-                            : "Payment Expired"}
-                        </h3>
-                        <p className="text-gray-600 px-4">
-                          {escrow.status === "refunded"
-                            ? "This transaction was refunded."
-                            : "This payment link has expired. Please request a new one from the seller."}
-                        </p>
-                      </motion.div>
-                    )}
+                    <motion.div
+                      key="refunded"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-center py-8 space-y-4"
+                    >
+                      <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                        <AlertTriangle className="w-10 h-10 text-red-500" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {escrow.status === "refunded"
+                          ? "Payment Refunded"
+                          : "Payment Expired"}
+                      </h3>
+                      <p className="text-gray-600 px-4">
+                        {escrow.status === "refunded"
+                          ? "This transaction was refunded."
+                          : "This payment link has expired. Please request a new one from the seller."}
+                      </p>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
 
-              {/* Live Chat Section */}
-              <ChatPanel transactionRef={ref} />
+              {/* Chat button */}
+              <div className="px-6 pb-6">
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-primary/20 text-primary py-3 rounded-xl font-semibold hover:bg-primary/5 transition-colors"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  Chat with Seller
+                </button>
+              </div>
             </>
           )}
 
@@ -656,6 +589,21 @@ export default function BuyerPaymentPage() {
           </div>
         </div>
       </main>
+
+      {/* Full-screen chat modal — slides up from bottom */}
+      <AnimatePresence>
+        {chatOpen && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 300 }}
+            className="fixed inset-0 z-50 flex flex-col"
+          >
+            <ChatPanel transactionRef={ref} onClose={() => setChatOpen(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

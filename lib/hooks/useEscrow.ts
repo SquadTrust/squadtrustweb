@@ -12,6 +12,10 @@ interface EscrowItem {
   delivery_method?: string;
   created_at: string;
   released_at?: string | null;
+  released_by?: string | null;
+  refund_reason?: string | null;
+  ai_verdict?: string | null;
+  ai_confidence?: number | null;
 }
 
 interface EscrowListResponse {
@@ -39,6 +43,11 @@ export interface EscrowPublicView {
   bank_name?: string | null;
   status: string;
   created_at: string;
+  released_by?: string | null;
+  refund_reason?: string | null;
+  ai_verdict?: string | null;
+  ai_confidence?: number | null;
+  ai_reasoning?: string | null;
 }
 
 export function useEscrowTransactions(merchantId: string | null) {
@@ -56,6 +65,10 @@ export function useEscrowTransactions(merchantId: string | null) {
         status: item.status as Transaction["status"],
         timestamp: item.created_at,
         description: item.product_description,
+        releasedBy: item.released_by ?? undefined,
+        refundReason: item.refund_reason ?? undefined,
+        aiVerdict: item.ai_verdict ?? undefined,
+        aiConfidence: item.ai_confidence ?? undefined,
       }));
     },
     enabled: !!merchantId,
