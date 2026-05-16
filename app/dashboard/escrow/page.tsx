@@ -10,7 +10,8 @@ import {
   useConfirmDelivery,
 } from "../../../lib/hooks/useEscrow";
 import { useChatHistory, useSendMessage } from "../../../lib/hooks/useChat";
-import { Plus, X, Send, Mic, MicOff, MessageSquare, PackageCheck } from "lucide-react";
+import { deriveE2EKey, decryptPayload, encryptPayload, type ChatPayload } from "../../../lib/chatCrypto";
+import { Plus, X, Send, Mic, MicOff, MessageSquare, PackageCheck, Lock } from "lucide-react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { cn, formatNaira } from "../../../lib/utils";
 
@@ -52,6 +53,51 @@ function MerchantChatPanel({
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const messages = chatData?.messages ?? [];
+  const [e2eEnabled, setE2eEnabled] = useState(false);
+  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
+  const [decryptedMap, setDecryptedMap] = useState<Map<string, { t: string; v?: boolean }>>(new Map());
+
+  // Derive E2E Key if enabled
+  useEffect(() => {
+    if (e2eEnabled) {
+      deriveE2EKey(tx.reference).then(setCryptoKey).catch(console.error);
+    } else {
+      setCryptoKey(null);
+    }
+  }, [e2eEnabled, tx.reference]);
+
+  // Decrypt all encrypted messages
+  useEffect(() => {
+    if (!cryptoKey) {
+      setDecryptedMap(prev => prev.size === 0 ? prev : new Map());
+      return;
+    }
+    const run = async () => {
+      const map = new Map<string, { t: string; v?: boolean }>();
+      for (const msg of chatData?.messages || []) {
+        if (msg.is_encrypted || msg.message.startsWith("ENC:")) {
+          try {
+            const p = await decryptPayload(msg.message, cryptoKey);
+            map.set(msg.id, p);
+          } catch {
+            map.set(msg.id, { t: "[Could not decrypt]" });
+          }
+        }
+      }
+      setDecryptedMap(map);
+    };
+    run();
+  }, [chatData?.messages, cryptoKey]);
+
+  function getDisplayContent(msg: typeof messages[0]) {
+    const isEncrypted = msg.is_encrypted || msg.message.startsWith("ENC:");
+    if (isEncrypted) {
+      const dec = decryptedMap.get(msg.id);
+      if (dec) return { text: dec.t, isVoice: dec.v ?? false, isEncrypted: true };
+      return { text: cryptoKey ? "Decrypting..." : "🔒 Encrypted", isVoice: false, isEncrypted: true };
+    }
+    return { text: msg.message, isVoice: msg.is_voice, isEncrypted: false };
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -86,10 +132,19 @@ function MerchantChatPanel({
     if (!trimmed) return;
     setSendError("");
     try {
+      let messageToSend = trimmed;
+      let isVoiceToSend = isVoice;
+
+      if (e2eEnabled && cryptoKey) {
+        const payload: ChatPayload = { t: trimmed, v: isVoice };
+        messageToSend = await encryptPayload(payload, cryptoKey);
+        isVoiceToSend = false;
+      }
+
       await sendMessage.mutateAsync({
         sender: "merchant",
-        message: trimmed,
-        is_voice: isVoice,
+        message: messageToSend,
+        is_voice: isVoiceToSend,
       });
       setText("");
       setIsVoice(false);
@@ -121,29 +176,48 @@ function MerchantChatPanel({
       className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] bg-white shadow-2xl flex flex-col"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
-        <div className="min-w-0">
-          <p className="font-semibold text-gray-900 truncate text-sm">
-            {tx.description || tx.reference}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {formatNaira(tx.amountKobo)} ·{" "}
-            <span
-              className={cn(
-                "font-medium",
-                tx.status === "funded" ? "text-blue-600" : "text-gray-500",
-              )}
-            >
-              {tx.status}
-            </span>
-          </p>
+      <div className="flex flex-col border-b border-gray-100 bg-gray-50">
+        <div className="flex items-center justify-between px-5 py-3">
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900 truncate text-sm">
+              {tx.description || tx.reference}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {formatNaira(tx.amountKobo)} ·{" "}
+              <span
+                className={cn(
+                  "font-medium",
+                  tx.status === "funded" ? "text-blue-600" : "text-gray-500",
+                )}
+              >
+                {tx.status}
+              </span>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full hover:bg-gray-200 transition-colors ml-3 flex-shrink-0"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-full hover:bg-gray-200 transition-colors ml-3 flex-shrink-0"
-        >
-          <X className="w-5 h-5 text-gray-500" />
-        </button>
+
+        {/* E2E Toggle */}
+        <div className="px-5 py-2 bg-gray-100 flex items-center justify-between border-t border-gray-200 text-xs">
+          <div className="flex items-center gap-1.5 text-gray-600 font-medium">
+            <Lock className="w-3.5 h-3.5" /> End-to-End Encryption
+          </div>
+          <button
+            onClick={() => setE2eEnabled(!e2eEnabled)}
+            className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${e2eEnabled ? "bg-primary" : "bg-gray-300"
+              }`}
+          >
+            <span
+              className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${e2eEnabled ? "translate-x-3.5" : "translate-x-0.5"
+                }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Confirm delivery banner */}
@@ -182,26 +256,27 @@ function MerchantChatPanel({
         )}
         {messages.map((msg) => {
           const isMerchant = msg.sender === "merchant";
+          const display = getDisplayContent(msg);
           return (
             <div
               key={msg.id}
               className={`flex flex-col max-w-[80%] ${isMerchant ? "self-end items-end" : "self-start items-start"}`}
             >
               <div
-                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-                  isMerchant
+                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isMerchant
                     ? "bg-primary text-white rounded-br-sm"
                     : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                }`}
+                  }`}
               >
-                {msg.is_voice && (
+                {display.isVoice && (
                   <span className="inline-flex items-center gap-1 text-xs opacity-75 mb-1 mr-1">
                     <Mic className="w-3 h-3" /> Voice ·{" "}
                   </span>
                 )}
-                {msg.message}
+                {display.text}
               </div>
-              <span className="text-[10px] text-gray-400 mt-0.5 px-1">
+              <span className="text-[10px] text-gray-400 mt-0.5 px-1 flex items-center gap-1">
+                {display.isEncrypted && <Lock className="w-2.5 h-2.5" />}
                 {msg.sender === "buyer" ? "Buyer" : "You"} ·{" "}
                 {new Date(msg.created_at).toLocaleTimeString([], {
                   hour: "2-digit",
@@ -239,11 +314,10 @@ function MerchantChatPanel({
             type="button"
             onClick={startVoice}
             disabled={isListening || sendMessage.isPending}
-            className={`p-2.5 rounded-xl transition-colors ${
-              isListening
+            className={`p-2.5 rounded-xl transition-colors ${isListening
                 ? "bg-red-100 text-red-600 animate-pulse"
                 : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-            }`}
+              }`}
           >
             {isListening ? (
               <MicOff className="w-4 h-4" />
@@ -445,7 +519,7 @@ export default function EscrowPage() {
                   key={tx.id}
                   transaction={tx}
                   onConfirmDelivery={(ref) =>
-                    confirmDelivery.mutateAsync(ref).then(() => {})
+                    confirmDelivery.mutateAsync(ref).then(() => { })
                   }
                   onOpenChat={(t) => setSelectedTx(t)}
                 />
@@ -478,7 +552,7 @@ export default function EscrowPage() {
               merchantId={merchantId}
               onClose={() => setSelectedTx(null)}
               onConfirm={(ref) =>
-                confirmDelivery.mutateAsync(ref).then(() => {})
+                confirmDelivery.mutateAsync(ref).then(() => { })
               }
             />
           </>

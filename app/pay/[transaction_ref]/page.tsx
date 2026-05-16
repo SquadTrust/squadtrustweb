@@ -45,11 +45,14 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
 
   // Decrypt all encrypted messages when messages or key changes
   useEffect(() => {
-    if (!cryptoKey) { setDecryptedMap(new Map()); return; }
+    if (!cryptoKey) {
+      setDecryptedMap(prev => prev.size === 0 ? prev : new Map());
+      return;
+    }
     const run = async () => {
       const map = new Map<string, { t: string; d?: string; n?: string; v?: boolean }>();
-      for (const msg of messages) {
-        if (msg.is_encrypted) {
+      for (const msg of chatData?.messages || []) {
+        if (msg.is_encrypted || msg.message.startsWith("ENC:")) {
           try {
             const p = await decryptPayload(msg.message, cryptoKey);
             map.set(msg.id, p);
@@ -61,7 +64,7 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
       setDecryptedMap(map);
     };
     run();
-  }, [messages, cryptoKey]);
+  }, [chatData?.messages, cryptoKey]);
 
   function startVoice() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,7 +141,8 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
   }
 
   function getDisplayContent(msg: ChatMessage): { text: string; isVoice: boolean; attData?: string; attName?: string; isEncrypted: boolean } {
-    if (msg.is_encrypted) {
+    const isEncrypted = msg.is_encrypted || msg.message.startsWith("ENC:");
+    if (isEncrypted) {
       const dec = decryptedMap.get(msg.id);
       if (dec) return { text: dec.t, isVoice: dec.v ?? false, attData: dec.d, attName: dec.n, isEncrypted: true };
       return { text: cryptoKey ? "Decrypting..." : "🔒 Encrypted", isVoice: false, isEncrypted: true };
@@ -173,11 +177,10 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
               setDecryptedMap(new Map());
             }
           }}
-          className={`ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-colors ${
-            e2eEnabled
+          className={`ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-colors ${e2eEnabled
               ? "bg-primary text-white border-primary"
               : "bg-white text-gray-500 border-gray-300 hover:border-primary"
-          }`}
+            }`}
         >
           <Lock className="w-3 h-3" />
           {e2eEnabled ? "E2E On" : "Encrypt"}
@@ -200,11 +203,10 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
               className={`flex flex-col max-w-[80%] ${isBuyer ? "self-end items-end" : "self-start items-start"}`}
             >
               <div
-                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-                  isBuyer
+                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isBuyer
                     ? "bg-primary text-white rounded-br-sm"
                     : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-1 flex-wrap">
                   {display.isVoice && (
@@ -326,11 +328,10 @@ function ChatPanel({ transactionRef }: { transactionRef: string }) {
           type="button"
           onClick={startVoice}
           disabled={isListening || sendMessage.isPending}
-          className={`p-2 rounded-xl transition-colors ${
-            isListening
+          className={`p-2 rounded-xl transition-colors ${isListening
               ? "bg-red-100 text-red-600 animate-pulse"
               : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-          }`}
+            }`}
         >
           {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
         </button>
@@ -594,51 +595,51 @@ export default function BuyerPaymentPage() {
 
                   {(escrow.status === "released" ||
                     escrow.status === "ai_verifying") && (
-                    <motion.div
-                      key="released"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-center py-8 space-y-4"
-                    >
-                      <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <ShieldCheck className="w-10 h-10 text-primary" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900">
-                        {escrow.status === "released"
-                          ? "Transaction Complete"
-                          : "AI Verifying Delivery"}
-                      </h3>
-                      <p className="text-gray-600 px-4">
-                        {escrow.status === "released"
-                          ? "Funds have been released to the seller. Thank you for using SquadTrust!"
-                          : "Our AI is verifying delivery. Funds will be released shortly."}
-                      </p>
-                    </motion.div>
-                  )}
+                      <motion.div
+                        key="released"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-8 space-y-4"
+                      >
+                        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <ShieldCheck className="w-10 h-10 text-primary" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900">
+                          {escrow.status === "released"
+                            ? "Transaction Complete"
+                            : "AI Verifying Delivery"}
+                        </h3>
+                        <p className="text-gray-600 px-4">
+                          {escrow.status === "released"
+                            ? "Funds have been released to the seller. Thank you for using SquadTrust!"
+                            : "Our AI is verifying delivery. Funds will be released shortly."}
+                        </p>
+                      </motion.div>
+                    )}
 
                   {(escrow.status === "refunded" ||
                     escrow.status === "expired") && (
-                    <motion.div
-                      key="refunded"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-center py-8 space-y-4"
-                    >
-                      <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                        <AlertTriangle className="w-10 h-10 text-red-500" />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900">
-                        {escrow.status === "refunded"
-                          ? "Payment Refunded"
-                          : "Payment Expired"}
-                      </h3>
-                      <p className="text-gray-600 px-4">
-                        {escrow.status === "refunded"
-                          ? "This transaction was refunded."
-                          : "This payment link has expired. Please request a new one from the seller."}
-                      </p>
-                    </motion.div>
-                  )}
+                      <motion.div
+                        key="refunded"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-center py-8 space-y-4"
+                      >
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                          <AlertTriangle className="w-10 h-10 text-red-500" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900">
+                          {escrow.status === "refunded"
+                            ? "Payment Refunded"
+                            : "Payment Expired"}
+                        </h3>
+                        <p className="text-gray-600 px-4">
+                          {escrow.status === "refunded"
+                            ? "This transaction was refunded."
+                            : "This payment link has expired. Please request a new one from the seller."}
+                        </p>
+                      </motion.div>
+                    )}
                 </AnimatePresence>
               </div>
 
