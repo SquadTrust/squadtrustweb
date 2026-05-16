@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,10 +10,173 @@ import {
   PackageCheck,
   AlertTriangle,
   Lock,
+  Send,
+  Mic,
+  MicOff,
+  MessageSquare,
 } from "lucide-react";
 import { formatNaira } from "../../../lib/utils";
 import { useEscrowDetail } from "../../../lib/hooks/useEscrow";
+import { useChatHistory, useSendMessage } from "../../../lib/hooks/useChat";
 import { fetchApi } from "../../../lib/api";
+
+function ChatPanel({ transactionRef }: { transactionRef: string }) {
+  const { data: chatData } = useChatHistory(transactionRef);
+  const sendMessage = useSendMessage(transactionRef);
+  const [text, setText] = useState("");
+  const [isVoice, setIsVoice] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const messages = chatData?.messages ?? [];
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  function startVoice() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setSendError("Voice recording not supported in this browser.");
+      return;
+    }
+    const recognition = new SR();
+    recognition.lang = "en-NG";
+    recognition.interimResults = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setText(transcript);
+      setIsVoice(true);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    setIsListening(true);
+    setIsVoice(false);
+    recognition.start();
+  }
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setSendError("");
+    try {
+      await sendMessage.mutateAsync({
+        sender: "buyer",
+        message: trimmed,
+        is_voice: isVoice,
+      });
+      setText("");
+      setIsVoice(false);
+    } catch (err: unknown) {
+      setSendError(err instanceof Error ? err.message : "Failed to send");
+    }
+  }
+
+  return (
+    <div className="border-t border-gray-100 flex flex-col">
+      <div className="px-4 py-3 bg-gray-50 flex items-center gap-2">
+        <MessageSquare className="w-4 h-4 text-gray-500" />
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+          Chat with Seller
+        </span>
+        {messages.length > 0 && (
+          <span className="ml-auto text-xs text-gray-400">
+            {messages.length} message{messages.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Message list */}
+      <div className="flex flex-col gap-2 px-4 py-3 max-h-60 overflow-y-auto">
+        {messages.length === 0 && (
+          <p className="text-xs text-gray-400 text-center py-4">
+            No messages yet. Say hello to the seller!
+          </p>
+        )}
+        {messages.map((msg) => {
+          const isBuyer = msg.sender === "buyer";
+          return (
+            <div
+              key={msg.id}
+              className={`flex flex-col max-w-[80%] ${isBuyer ? "self-end items-end" : "self-start items-start"}`}
+            >
+              <div
+                className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                  isBuyer
+                    ? "bg-primary text-white rounded-br-sm"
+                    : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                }`}
+              >
+                {msg.is_voice && (
+                  <span className="inline-flex items-center gap-1 text-xs opacity-75 mb-1 mr-1">
+                    <Mic className="w-3 h-3" /> Voice ·{" "}
+                  </span>
+                )}
+                {msg.message}
+              </div>
+              <span className="text-[10px] text-gray-400 mt-0.5 px-1">
+                {new Date(msg.created_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <form onSubmit={handleSend} className="px-4 pb-4 flex gap-2 items-end">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (isVoice) setIsVoice(false);
+            }}
+            placeholder={isListening ? "Listening…" : "Type a message…"}
+            disabled={isListening}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 pr-8 disabled:bg-gray-50"
+          />
+          {isVoice && (
+            <span className="absolute right-2 top-2.5 text-[10px] text-primary font-semibold">
+              Voice
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={startVoice}
+          disabled={isListening || sendMessage.isPending}
+          className={`p-2 rounded-xl transition-colors ${
+            isListening
+              ? "bg-red-100 text-red-600 animate-pulse"
+              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+          }`}
+        >
+          {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+        </button>
+        <button
+          type="submit"
+          disabled={!text.trim() || sendMessage.isPending}
+          className="p-2 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-40 transition-colors"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </form>
+
+      {sendError && (
+        <p className="px-4 pb-3 text-xs text-red-500">{sendError}</p>
+      )}
+    </div>
+  );
+}
 
 export default function BuyerPaymentPage() {
   const params = useParams();
@@ -306,6 +469,9 @@ export default function BuyerPaymentPage() {
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* Live Chat Section */}
+              <ChatPanel transactionRef={ref} />
             </>
           )}
 

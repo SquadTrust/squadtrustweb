@@ -3,7 +3,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { StatusBadge, type TransactionStatus } from "./StatusBadge";
 import { formatNaira } from "../lib/utils";
-import { ArrowRightLeft, PackageCheck, Loader2 } from "lucide-react";
+import { ArrowRightLeft, PackageCheck, Loader2, MessageSquare } from "lucide-react";
 
 export interface Transaction {
   id: string;
@@ -18,9 +18,10 @@ interface TransactionRowProps {
   transaction: Transaction;
   onConfirmDelivery?: (ref: string) => Promise<void>;
   onClick?: (tx: Transaction) => void;
+  onOpenChat?: (tx: Transaction) => void;
 }
 
-export function TransactionRow({ transaction, onConfirmDelivery, onClick }: TransactionRowProps) {
+export function TransactionRow({ transaction, onConfirmDelivery, onClick, onOpenChat }: TransactionRowProps) {
   const date = new Date(transaction.timestamp);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState("");
@@ -76,6 +77,19 @@ export function TransactionRow({ transaction, onConfirmDelivery, onClick }: Tran
             {formatNaira(transaction.amountKobo)}
           </p>
           <StatusBadge status={transaction.status} />
+          {onOpenChat && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenChat(transaction);
+              }}
+              className="mt-1 flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-md hover:bg-gray-200 transition-colors"
+            >
+              <MessageSquare className="w-3 h-3" />
+              Chat
+            </button>
+          )}
           {isFunded && onConfirmDelivery && (
             <button
               onClick={handleConfirm}
