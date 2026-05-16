@@ -18,11 +18,34 @@ export interface LoanApplyResponse {
   message: string;
 }
 
+export interface LoanRow {
+  id: string;
+  merchant_id: string;
+  amount_naira: number;
+  tenor_days: number;
+  status: "approved" | "disbursed" | "repaid" | "defaulted";
+  approved_at: string | null;
+  disbursed_at: string | null;
+  created_at: string;
+}
+
 export function useLoanEligibility(merchantId: string | null) {
   return useQuery({
     queryKey: ["loan-eligibility", merchantId],
     queryFn: () =>
       fetchApi<LoanEligibilityResponse>("/merchants/me/loan-eligibility", {
+        headers: { "X-Merchant-Id": merchantId! },
+      }),
+    enabled: !!merchantId,
+    staleTime: 30_000,
+  });
+}
+
+export function useLoanList(merchantId: string | null) {
+  return useQuery({
+    queryKey: ["loans", merchantId],
+    queryFn: () =>
+      fetchApi<LoanRow[]>("/merchants/me/loans", {
         headers: { "X-Merchant-Id": merchantId! },
       }),
     enabled: !!merchantId,
