@@ -68,12 +68,16 @@ function useLaunchApp() {
     // Clear any pending fallback
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Try the custom scheme — opens the app if installed
-    window.location.href = "squadtrust://open";
+    // Open a new tab first to avoid popup blockers
+    const newTab = window.open("about:blank", "_blank");
+    if (!newTab) return;
 
-    // After 1.5 s with no navigation change, the app isn't installed → go to EAS
+    // Try the custom scheme in the new tab
+    newTab.location.href = "squadtrust://open";
+
+    // After 1.5 s, if the app isn't installed, redirect the new tab to EAS
     timerRef.current = setTimeout(() => {
-      window.location.href = EAS_INSTALL_URL;
+      newTab.location.href = EAS_INSTALL_URL;
     }, 1500);
   }
 
@@ -185,43 +189,43 @@ export default function SoftPosPage() {
           <div className="h-48 w-full">
             {hasMounted && (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
-              <BarChart
-                data={chartData}
-                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#E5E7EB"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#6B7280" }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#6B7280" }}
-                  tickFormatter={(val) => `₦${val / 1000}k`}
-                />
-                <Tooltip
-                  cursor={{ fill: "#F3F4F6" }}
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                  }}
-                  formatter={(value: unknown) => [
-                    formatNaira(Number(value || 0) * 100),
-                    "Sales",
-                  ]}
-                />
-                <Bar dataKey="amount" fill="#0B6E4F" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#E5E7EB"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: "#6B7280" }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: "#6B7280" }}
+                    tickFormatter={(val) => `₦${val / 1000}k`}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "#F3F4F6" }}
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    }}
+                    formatter={(value: unknown) => [
+                      formatNaira(Number(value || 0) * 100),
+                      "Sales",
+                    ]}
+                  />
+                  <Bar dataKey="amount" fill="#0B6E4F" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </div>
         </motion.div>
