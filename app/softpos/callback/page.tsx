@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, XCircle, Loader2, ShieldCheck } from "lucide-react";
@@ -22,7 +22,7 @@ function formatNaira(kobo: number): string {
   });
 }
 
-export default function SoftPosCallbackPage() {
+function CallbackContent() {
   const searchParams = useSearchParams();
   const reference = searchParams.get("reference") || searchParams.get("transaction_ref");
 
@@ -166,5 +166,19 @@ export default function SoftPosCallbackPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SoftPosCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="w-10 h-10 text-[#0B6E4F] animate-spin" />
+        </div>
+      }
+    >
+      <CallbackContent />
+    </Suspense>
   );
 }
