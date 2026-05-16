@@ -25,11 +25,14 @@ export default function LoginPage() {
 
   // Login fields
   const [loginPhone, setLoginPhone] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
   // Register fields
   const [regPhone, setRegPhone] = useState("");
   const [regBusiness, setRegBusiness] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regPasswordConfirm, setRegPasswordConfirm] = useState("");
   const [regGTBank, setRegGTBank] = useState("");
 
   function storeAndRedirect(merchant: MerchantRead) {
@@ -41,18 +44,17 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (loginPhone.length < 10) return;
+    if (loginPhone.length < 10 || !loginPassword) return;
 
     setIsLoading(true);
     try {
-      const merchant = await fetchApi<MerchantRead>(
-        `/merchants/by-phone/${encodeURIComponent(loginPhone)}`,
-      );
+      const merchant = await fetchApi<MerchantRead>("/merchants/login", {
+        method: "POST",
+        body: JSON.stringify({ phone: loginPhone, password: loginPassword }),
+      });
       storeAndRedirect(merchant);
     } catch {
-      setError(
-        "No account found for this phone number. Please register first.",
-      );
+      setError("Invalid phone number or password.");
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +63,15 @@ export default function LoginPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!regBusiness || !regPhone || !regEmail) return;
+    if (!regBusiness || !regPhone || !regEmail || !regPassword) return;
+    if (regPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (regPassword !== regPasswordConfirm) {
+      setError("Passwords do not match.");
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -71,6 +81,7 @@ export default function LoginPage() {
           business_name: regBusiness,
           phone: regPhone,
           email: regEmail,
+          password: regPassword,
           ...(regGTBank ? { gtbank_account: regGTBank } : {}),
         }),
       });
@@ -149,9 +160,27 @@ export default function LoginPage() {
               />
             </div>
 
+            <div>
+              <label
+                htmlFor="loginPassword"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Password
+              </label>
+              <input
+                id="loginPassword"
+                type="password"
+                required
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="appearance-none block w-full px-3 py-2.5 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                placeholder="Enter your password"
+              />
+            </div>
+
             <button
               type="submit"
-              disabled={isLoading || loginPhone.length < 10}
+              disabled={isLoading || loginPhone.length < 10 || !loginPassword}
               className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 transition-colors"
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -226,6 +255,43 @@ export default function LoginPage() {
 
             <div>
               <label
+                htmlFor="regPassword"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="regPassword"
+                type="password"
+                required
+                minLength={6}
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                className="appearance-none block w-full px-3 py-2.5 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                placeholder="Min. 6 characters"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="regPasswordConfirm"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Confirm Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="regPasswordConfirm"
+                type="password"
+                required
+                value={regPasswordConfirm}
+                onChange={(e) => setRegPasswordConfirm(e.target.value)}
+                className="appearance-none block w-full px-3 py-2.5 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                placeholder="Re-enter your password"
+              />
+            </div>
+
+            <div>
+              <label
                 htmlFor="regGTBank"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
@@ -248,7 +314,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !regBusiness || !regPhone || !regEmail}
+              disabled={isLoading || !regBusiness || !regPhone || !regEmail || !regPassword || !regPasswordConfirm}
               className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 transition-colors"
             >
               {isLoading ? "Creating account..." : "Create Account"}

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Smartphone, RefreshCw, Filter, TrendingUp } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Smartphone, RefreshCw, Filter, TrendingUp, Download } from "lucide-react";
 import { TransactionRow } from "../../../components/TransactionRow";
 import {
   BarChart,
@@ -56,8 +56,36 @@ function buildWeeklyChart(
   return ordered;
 }
 
+// EAS internal-distribution install URL — update this after running `eas build --profile preview`
+const EAS_INSTALL_URL =
+  process.env.NEXT_PUBLIC_EAS_BUILD_URL ??
+  "https://expo.dev/accounts/squadtrust/projects/squadtrust/builds";
+
+function useLaunchApp() {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function launch() {
+    // Clear any pending fallback
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    // Try the custom scheme — opens the app if installed
+    window.location.href = "squadtrust://open";
+
+    // After 1.5 s with no navigation change, the app isn't installed → go to EAS
+    timerRef.current = setTimeout(() => {
+      window.location.href = EAS_INSTALL_URL;
+    }, 1500);
+  }
+
+  // Clean up on unmount
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  return launch;
+}
+
 export default function SoftPosPage() {
   const [merchantId, setMerchantId] = useState<string | null>(null);
+  const launchApp = useLaunchApp();
 
   useEffect(() => {
     let isMounted = true;
@@ -111,7 +139,11 @@ export default function SoftPosPage() {
               className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`}
             />
           </button>
-          <button className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">
+          <button
+            onClick={launchApp}
+            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+            title="Opens the SquadTrust app if installed, otherwise installs it"
+          >
             <Smartphone className="w-4 h-4" />
             Launch Terminal App
           </button>
